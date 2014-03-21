@@ -5,7 +5,7 @@
 
 ### Usage:
 
-##### Setup - modules may be promises
+##### Setup
 ```js
 var tendril = require('tendril');
 
