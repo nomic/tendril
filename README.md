@@ -57,7 +57,7 @@ tendril.include('xyzService/oooService', function(abcService) {
 ```
 
 ##### Lazy loading
-Only load modules if required by a 'seed' module
+Only load modules if required by a 'edge' module
 ```js
 tendril.config({
     crawl: [
