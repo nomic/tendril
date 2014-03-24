@@ -64,7 +64,7 @@ module.exports = (function() {
     // returns a service
     tendril.get = function get(name) {
         if (_.isArray(name)) {
-            return Promise.all(_.map(name, tendril.get));
+            return Promise.all(_.map(name, get));
         }
 
         if (!services[name]) {
