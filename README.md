@@ -12,7 +12,7 @@ var tendril = require('tendril');
 tendril.config({
 
     // directories to crawl
-    branches: [
+    crawl: [
         // where to look
         path: __dirname+'/services',
 
@@ -60,7 +60,7 @@ tendril.include('xyzService/oooService', function(abcService) {
 Only load modules if required by a 'seed' module
 ```js
 tendril.config({
-    branches: [
+    crawl: [
         path: __dirname+'/services',
         postfix: 'Service'
     ],
