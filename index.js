@@ -14,148 +14,84 @@ var Promise = require('bluebird'),
     All returned services are promises, but will not be at time of injection
 */
 
+function getParams(fn) {
+    var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
+    var commentsExp = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+    var argExp = /^\s*(\S+?)\s*$/;
+
+    var fnString = fn.toString().replace(commentsExp, '');
+    var match = fnString.match(functionExp);
+    var params = match && match[1];
+
+    if(!match || !params) return [];
+
+    return _.map(params.split(','), function(param) {
+       return param.match(argExp)[1];
+    });
+}
+
 module.exports = (function() {
 
     var services = {};
-    var pending = [];
-    var requestQueue = [];
-    var config = {};
+    var config = {
+        crawl:[],
+        lazy: false
+    };
 
-    /*
-     * @param cfg {Object} - optional
-     * @param fn {Function}
-     */
-    function tendril(cfg, fn) {
-        return tendril.get(cfg)
-        if (!fn) {
-            fn = cfg
+    function tendril(fn) {
+        var args = [];
+        if (Array.isArray(fn)) {
+            var tmp = fn;
+            fn = fn.pop();
+            args = tmp;
         } else {
-            tendril.config(config)
-        }
-    }
-
-    tendril.config = function(cfg) {
-        config = _.extend(config, cfg)
-    }
-
-    tendril.get = function get(service) {
-        if (_.isArray(service)) {
-            return Promise.all(_.map(service, function(service) {
-                return tendril.get(service)
-            }));
+            args = getParams(fn);
         }
 
-        if (services[service]) {
-            return Promise.resolve(services[service]);
+        Promise.all(_.map(args, function(name){
+            return tendril.get(name);
+        })).spread(fn).done();
+
+        return tendril;
+    }
+
+    // set config
+    tendril.config = function conf(cfg) {
+        config = _.assign(config, cfg);
+        return tendril;
+    };
+
+    // returns a service
+    tendril.get = function get(name) {
+        if (_.isArray(name)) {
+            return Promise.all(_.map(name, tendril.get));
         }
 
-        var deferred = Promise.defer();
-        requestQueue.push({
-            service: service,
-            deferred: deferred
-        });
-
-        resolve();
-
-        return deferred.promise;
-    }
-
-    function getParams(fn) {
-        var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
-        var commentsExp = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-        var argExp = /^\s*(\S+?)\s*$/;
-
-        var fnString = fn.toString().replace(commentsExp, '');
-        var match = fnString.match(functionExp);
-        var params = match && match[1];
-
-        if(!match || !params) return [];
-
-        return _.map(params.split(','), function(param) {
-           return param.match(argExp)[1];
-        });
-    }
-
-    function isFinishedFn(fn) {
-        // count number of remaining injectable parameters
-        return getParams(fn).length === 0;
-    }
-
-    function updateFn(fn) {
-        // if all injectable params available, return a curried function
-        // otherwise return original
-
-        var filledParams = _.map(getParams(fn), function(param) {
-            return services[param];
-        });
-
-        if(_.every(filledParams)) {
-            return function() {
-                return fn.apply(null, filledParams);
-            };
+        if (!services[name]) {
+            var deferred = Promise.defer();
+            services[name] = deferred.promise;
+            services[name].deferred = deferred;
         }
 
-        return fn;
-    }
+        return Promise.resolve(services[name]);
+    };
 
-    function resolve() {
-        // update pending functions
-        var updated = false;
-        pending = _.reduce(pending, function(arr, pender) {
-            pender.fn = updateFn(pender.fn);
-
-            if (isFinishedFn(pender.fn)) {
-                services[pender.name] = pender.fn();
-                updated = true;
+    tendril.include = function include(name, service) {
+        if (typeof service === 'function') {
+            tendril(getParams(service).concat([function() {
+                Promise.resolve(service.apply(null, arguments)).then(function(resolvedService) {
+                    tendril.include(name, resolvedService);
+                });
+            }]));
+        } else {
+            if (services[name] && services[name].deferred) {
+                services[name].deferred.resolve(Promise.resolve(service));
             } else {
-                arr.push(pender);
+                services[name] = Promise.resolve(service);
             }
+        }
 
-            return arr;
-        }, []);
-
-        if(updated) return resolve();
-
-        // reply to waiting queue
-        requestQueue = _.reduce(requestQueue, function(arr, request) {
-            var service = services[request.service];
-            if (service) {
-                request.deferred.resolve(service);
-            } else {
-                arr.push(request);
-            }
-
-            return arr;
-        }, []);
-
-    }
-
-    // Read the module directory, figure out dependencies
-    // This will eventually not be necessary
-    //   as all modules in the directory will be loaded
-    tendril.loadRoutes = function loadRoutes(service) {
-        var name = service+'|routes';
-        return this.loadDirect(name, require('./modules/'+service+'/routes'));
-    };
-
-    tendril.loadModule = function loadModule(service) {
-        return this.loadDirect(service, require('./modules/'+service));
-    };
-
-    tendril.loadDirect = function loadDirect(name, service) {
-        pending.push({
-            fn: service,
-            name: name
-        });
-
-        resolve();
-        return tendril(name);
-    };
-
-    // Inject a built service
-    tendril.input = function inject(name, service) {
-        services[name] = service;
-        resolve();
+        return tendril;
     };
 
     return tendril;
