@@ -1,18 +1,6 @@
 var Promise = require('bluebird'),
-    _ = require('lodash');
-
-/*
-    The Idea:
-    Modules can be loaded in any order
-    Their dependencies are specified in their function signature
-
-    As modules are loaded that can be fully resolved of dependencies
-    their dependents will get resolved
-
-    injected modules also fulful the resolution on dependents
-
-    All returned services are promises, but will not be at time of injection
-*/
+    _ = require('lodash'),
+    fs = require('fs');
 
 function getParams(fn) {
     var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
@@ -34,8 +22,7 @@ module.exports = (function() {
 
     var services = {};
     var config = {
-        crawl:[],
-        lazy: false
+        crawl:[]
     };
 
     function tendril(fn) {
@@ -58,6 +45,21 @@ module.exports = (function() {
     // set config
     tendril.config = function conf(cfg) {
         config = _.assign(config, cfg);
+        return tendril;
+    };
+
+    tendril.crawl = function() {
+        _.forEach(config.crawl, function(crawl) {
+            fs.readdir(crawl.path, function(err, files) {
+                if (err) throw err;
+
+                _.forEach(files, function(file) {
+                    var name = file.replace(/.js$/,'') + (crawl.postfix || '');
+                    tendril.include(name, require(crawl.path+'/'+file));
+                });
+            });
+        });
+
         return tendril;
     };
 

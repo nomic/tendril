@@ -12,14 +12,14 @@ var tendril = require('tendril');
 tendril.config({
 
     // directories to crawl
-    crawl: [
+    crawl: [{
         // where to look
         path: __dirname+'/services',
 
         // added to the end of module names for injection
         postfix: 'Service'
-    ]
-})(function(abcService, xyzService /* optional */) {
+    }]
+}).crawl()(function(abcService, xyzService /* optional */) {
     // all services instantiated
 })
 ```
@@ -58,13 +58,13 @@ tendril.include('xyzService/oooService', function(abcService) {
 
 ##### Lazy loading
 Only load modules if required by an 'edge' module
+Simply exclude the crawl function
 ```js
 tendril.config({
     crawl: [
         path: __dirname+'/services',
         postfix: 'Service'
-    ],
-    lazy: true
+    ]
 })(function(qweService, abcService, xyzService){
     // services loaded
 })

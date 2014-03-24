@@ -85,6 +85,19 @@ describe('Tendril', function() {
         });
     });
 
+    // test crawl
+    it('crawls', function(done) {
+        tendril.config({
+            crawl: [{
+                path: __dirname+'/services',
+                postfix: 'Service'
+            }]
+        }).crawl()(function(abcService) {
+            assert.strictEqual(abcService.abc, 'abc');
+            done();
+        });
+    });
+
     // test getters
     // test arrays
     // test named includes
