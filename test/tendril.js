@@ -92,8 +92,10 @@ describe('Tendril', function() {
                 path: __dirname+'/services',
                 postfix: 'Service'
             }]
-        }).crawl()(function(abcService) {
+        }).crawl()(function(abcService, hjkService, xyzService) {
             assert.strictEqual(abcService.abc, 'abc');
+            assert.strictEqual(hjkService.abc, 'abc');
+            assert.strictEqual(xyzService.abc, 'abc');
             done();
         });
     });
