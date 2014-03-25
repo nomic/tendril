@@ -78,8 +78,9 @@ module.exports = (function() {
         return Promise.resolve(services[name]);
     };
 
-    tendril.include = function include(name, service) {
-        if (typeof service === 'function') {
+    tendril.include = function include(name, service, inject) {
+        inject = typeof inject !== 'undefined' ? inject : true;
+        if (typeof service === 'function' && inject) {
             tendril(getParams(service).concat([function() {
                 Promise.resolve(service.apply(null, arguments)).then(function(resolvedService) {
                     tendril.include(name, resolvedService);
@@ -95,6 +96,5 @@ module.exports = (function() {
 
         return tendril;
     };
-
     return tendril;
 })();

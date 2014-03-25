@@ -98,6 +98,8 @@ describe('Tendril', function() {
         });
     });
 
+
+    // test optional inject params
     // test getters
     // test arrays
     // test named includes
