@@ -9,17 +9,13 @@
 ```js
 var tendril = require('tendril');
 
-tendril.config({
-
-    // directories to crawl
-    crawl: [{
+tendril.crawl([{
         // where to look
         path: __dirname+'/services',
 
         // added to the end of module names for injection
         postfix: 'Service'
-    }]
-}).crawl()(function(abcService, xyzService /* optional */) {
+    }])(function(abcService, xyzService /* optional */) {
     // all services instantiated
 })
 ```
@@ -60,12 +56,10 @@ tendril.include('xyzService/oooService', function(abcService) {
 Only load modules if required by an 'edge' module
 Simply exclude the crawl function
 ```js
-tendril.config({
-    crawl: [
+tendril.crawl([
         path: __dirname+'/services',
         postfix: 'Service'
-    ]
-})(function(qweService, abcService, xyzService){
+    ])(function(qweService, abcService, xyzService){
     // services loaded
 })
 ```

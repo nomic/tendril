@@ -21,9 +21,6 @@ function getParams(fn) {
 module.exports = (function() {
 
     var services = {};
-    var config = {
-        crawl:[]
-    };
     var chains = Promise.resolve(null);
 
     function tendril(fn, noChain) {
@@ -52,14 +49,8 @@ module.exports = (function() {
         return tendril;
     }
 
-    // set config
-    tendril.config = function conf(cfg) {
-        config = _.assign(config, cfg);
-        return tendril;
-    };
-
-    tendril.crawl = function() {
-        _.forEach(config.crawl, function(crawl) {
+    tendril.crawl = function(crawls) {
+        _.forEach(crawls, function(crawl) {
             fs.readdir(crawl.path, function(err, files) {
                 if (err) throw err;
 

@@ -89,12 +89,10 @@ describe('Tendril', function() {
 
     // test crawl
     it('crawls', function(done) {
-        tendril.config({
-            crawl: [{
+        tendril.crawl([{
                 path: __dirname+'/services',
                 postfix: 'Service'
-            }]
-        }).crawl()(function(abcService, hjkService, xyzService) {
+            }])(function(abcService, hjkService, xyzService) {
             assert.strictEqual(abcService.abc, 'abc');
             assert.strictEqual(hjkService.abc, 'abc');
             assert.strictEqual(xyzService.abc, 'abc');
@@ -105,12 +103,7 @@ describe('Tendril', function() {
     it('chains', function(done) {
 
         var cnt = 0;
-        tendril.config({
-            crawl: [{
-                path: __dirname+'/services',
-                postfix: 'Service'
-            }]
-        })
+        tendril
         .include('testService', function(hjkService) {
             cnt++;
             return new Promise(function(resolve, reject) {
@@ -120,7 +113,10 @@ describe('Tendril', function() {
                 }, 10);
             });
         })
-        .crawl()(function(testService, abcService, hjkService, xyzService) {
+        .crawl([{
+            path: __dirname+'/services',
+            postfix: 'Service'
+        }])(function(testService, abcService, hjkService, xyzService) {
             cnt++;
         })(function() {
             assert(cnt === 3);
