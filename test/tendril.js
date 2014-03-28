@@ -1,4 +1,6 @@
-var assert = require('assert');
+var assert = require('assert'),
+    Promise = require('bluebird'),
+    _ = require('lodash');
 
 describe('Tendril', function() {
     var tendril = require('../');
@@ -96,6 +98,32 @@ describe('Tendril', function() {
             assert.strictEqual(abcService.abc, 'abc');
             assert.strictEqual(hjkService.abc, 'abc');
             assert.strictEqual(xyzService.abc, 'abc');
+            done();
+        });
+    });
+
+    it('chains', function(done) {
+
+        var cnt = 0;
+        tendril.config({
+            crawl: [{
+                path: __dirname+'/services',
+                postfix: 'Service'
+            }]
+        })
+        .include('testService', function(hjkService) {
+            cnt++;
+            return new Promise(function(resolve, reject) {
+                _.delay(function() {
+                    cnt++;
+                    resolve('done');
+                }, 10);
+            });
+        })
+        .crawl()(function(testService, abcService, hjkService, xyzService) {
+            cnt++;
+        })(function() {
+            assert(cnt === 3);
             done();
         });
     });

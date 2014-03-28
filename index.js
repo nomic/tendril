@@ -24,8 +24,9 @@ module.exports = (function() {
     var config = {
         crawl:[]
     };
+    var chains = Promise.resolve(null);
 
-    function tendril(fn) {
+    function tendril(fn, noChain) {
         var args = [];
         if (Array.isArray(fn)) {
             var tmp = fn;
@@ -35,9 +36,18 @@ module.exports = (function() {
             args = getParams(fn);
         }
 
-        Promise.all(_.map(args, function(name){
-            return tendril.get(name);
-        })).spread(fn).done();
+        if (!noChain) {
+            chains = chains.then(function() {
+               return Promise.all(_.map(args, function(name){
+                    return tendril.get(name);
+                })).spread(fn);
+            });
+        } else {
+            Promise.all(_.map(args, function(name){
+                return tendril.get(name);
+            })).spread(fn).done();
+        }
+
 
         return tendril;
     }
@@ -85,7 +95,7 @@ module.exports = (function() {
                 Promise.resolve(service.apply(null, arguments)).then(function(resolvedService) {
                     tendril.include(name, resolvedService);
                 });
-            }]));
+            }]), true);
         } else {
             if (services[name] && services[name].deferred) {
                 services[name].deferred.resolve(Promise.resolve(service));
