@@ -99,7 +99,15 @@ module.exports = (function() {
             _.forEach(name, function(service, serviceName) {
                 tendril.include(serviceName, service, inject);
             });
-        } else if (typeof service === 'function' && inject) {
+
+        // service is a function or has a setup function on it
+        } else if ((typeof service === 'function' ||
+                        typeof service === 'object' &&
+                        typeof service.setup === 'function') &&
+                   inject) {
+            if (typeof service === 'object') {
+                service = service.setup;
+            }
             tendril(getParams(service).concat([function() {
                 Promise.resolve(service.apply(null, arguments)).then(function(resolvedService) {
                     tendril.include(name, resolvedService);

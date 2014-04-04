@@ -76,6 +76,21 @@ describe('Tendril', function() {
        });
     });
 
+    it('object .setup function injection', function(done) {
+        tendril(function(setupService) {
+            assert.strictEqual(setupService.setup, true);
+            done();
+        })
+        .include('serviceOne', serviceOne)
+        .include('setupService', {
+            setup: function(serviceOne) {
+                return {
+                    setup: true
+                };
+            }
+        });
+    });
+
     it('loading async', function(done) {
         tendril
         .include('serviceTwo', '2')
