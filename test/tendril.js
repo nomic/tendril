@@ -64,6 +64,18 @@ describe('Tendril', function() {
 
     });
 
+    it('object property injection', function(done) {
+       tendril(function(serviceOneX) {
+           assert.strictEqual(serviceOneX.two, '2');
+           assert.strictEqual(serviceOneX.three, '3');
+           done();
+       }).include({
+           serviceOneX: serviceOne,
+           serviceTwo: '2',
+           serviceThree: '3'
+       });
+    });
+
     it('loading async', function(done) {
         tendril
         .include('serviceTwo', '2')

@@ -49,6 +49,20 @@ module.exports = (function() {
         return tendril;
     }
 
+    tendril.tree = function(crawls) {
+        var results = {};
+        return Promise.all(_.map(crawls, function(crawl) {
+            Promise.pomisify(fs.readdir)(crawl.path).then(function(files) {
+                return Promise.all(_.map(files, function(file) {
+                    var name = file.replace(/.js$/,'') + (crawl.postfix || '');
+                    results[name] = getParams(require(crawl.path+'/'+file));
+                }));
+            });
+        })).then(function(){
+            return results;
+        });
+    };
+
     tendril.crawl = function(crawls) {
         _.forEach(crawls, function(crawl) {
             fs.readdir(crawl.path, function(err, files) {
@@ -81,7 +95,11 @@ module.exports = (function() {
 
     tendril.include = function include(name, service, inject) {
         inject = typeof inject !== 'undefined' ? inject : true;
-        if (typeof service === 'function' && inject) {
+        if (typeof name === 'object') {
+            _.forEach(name, function(service, serviceName) {
+                tendril.include(serviceName, service, inject);
+            });
+        } else if (typeof service === 'function' && inject) {
             tendril(getParams(service).concat([function() {
                 Promise.resolve(service.apply(null, arguments)).then(function(resolvedService) {
                     tendril.include(name, resolvedService);
