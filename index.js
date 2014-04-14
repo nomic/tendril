@@ -22,6 +22,8 @@ module.exports = (function() {
 
     var services = {};
     var chains = Promise.resolve(null);
+    var debug = false;
+    var debugTimer = null;
 
     function tendril(fn, noChain) {
         var args = [];
@@ -45,9 +47,22 @@ module.exports = (function() {
             })).spread(fn).done();
         }
 
+        if (debug) {
+            if (debugTimer) clearTimeout(debugTimer);
+            debugTimer = setTimeout(function() {
+                console.error('MISSING DEPENDENCIES', _.filter(args, function(dep) {
+                    return services[dep].isPending();
+                }));
+            }, 1000);
+        }
 
         return tendril;
     }
+
+    tendril.debug = function() {
+        debug = true;
+        return tendril;
+    };
 
     tendril.tree = function(crawls) {
         var results = {};
