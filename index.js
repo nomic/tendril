@@ -18,14 +18,37 @@ function getParams(fn) {
     });
 }
 
-module.exports = (function() {
+module.exports = function Tendril(config) {
+    config = _.defaults(config || {}, {
+        debug: false
+    });
 
-    var services = {};
-    var chains = Promise.resolve(null);
-    var debug = false;
+    var services = {tendril: tendril};
+
+    // Chain is inner promise loop, used to sequence user function calls
+    var chain = Promise.resolve(null);
     var debugTimer = null;
 
-    function tendril(fn, noChain) {
+    function tendril(fn) {
+        chain = chain.then(function() {
+            return tendril._resolve(fn);
+        });
+
+        return tendril;
+    }
+
+    function debugThrow() {
+        if (debugTimer) clearTimeout(debugTimer);
+            debugTimer = setTimeout(function() {
+                var missing = _.filter(args, function(dep) {
+                    return services[dep].isPending();
+                });
+                if (missing.length)
+                    console.error('MISSING DEPENDENCIES', missing);
+            }, 1000);
+    }
+
+    tendril._resolve = function resolve(fn) {
         var args = [];
         if (Array.isArray(fn)) {
             var tmp = fn;
@@ -35,32 +58,22 @@ module.exports = (function() {
             args = getParams(fn);
         }
 
-        if (!noChain) {
-            chains = chains.then(function() {
-               return Promise.all(_.map(args, function(name){
-                    return tendril.get(name);
-                })).spread(fn);
+        if (config.debug) {
+            debugThrow();
+        }
+
+        return Promise.all(_.map(args, function(name){
+            return tendril.get(name);
+        })).spread(fn).then(null, function(err) {
+            setImmediate(function() {
+                throw err;
             });
-        } else {
-            Promise.all(_.map(args, function(name){
-                return tendril.get(name);
-            })).spread(fn).done();
-        }
+       });
 
-        if (debug) {
-            if (debugTimer) clearTimeout(debugTimer);
-            debugTimer = setTimeout(function() {
-                console.error('MISSING DEPENDENCIES', _.filter(args, function(dep) {
-                    return services[dep].isPending();
-                }));
-            }, 1000);
-        }
-
-        return tendril;
-    }
+    };
 
     tendril.debug = function() {
-        debug = true;
+        config.debug = true;
         return tendril;
     };
 
@@ -123,7 +136,7 @@ module.exports = (function() {
             if (typeof service === 'object') {
                 service = service.setup;
             }
-            tendril(getParams(service).concat([function() {
+            tendril._resolve(getParams(service).concat([function() {
                 Promise.resolve(service.apply(null, arguments)).then(function(resolvedService) {
                     tendril.include(name, resolvedService);
                 });
@@ -139,4 +152,4 @@ module.exports = (function() {
         return tendril;
     };
     return tendril;
-})();
+};
