@@ -7,7 +7,8 @@
 
 ##### Setup
 ```js
-var tendril = require('tendril');
+var config = {};
+var tendril = require('tendril')(config);
 
 tendril.crawl([{
         // where to look
@@ -30,7 +31,9 @@ module.exports = function(xyzService) {
 
 ##### Include/Override
 ```js
-tendril.include('abcService', {hello: 'world'})(function(abcService, xyzService) {
+tendril
+.include('abcService', {hello: 'world'})
+(function(abcService, xyzService) {
     // services instantiated
 })
 .include('xyzService', function(abcService){
@@ -40,26 +43,56 @@ tendril.include('abcService', {hello: 'world'})(function(abcService, xyzService)
 })
 ```
 
-### Submodules
+##### Named parameter injection
+```js
+tendril
+.include('serviceTwo', '2')
+(['serviceTwo', 'tendril', function(serviceTwo____, ____tendril) {
+
+}]);
+```
+
+##### Nested Injection
+```js
+tendril
+.include('serviceTwo', '2')
+.include('serviceThree', '3')
+// The current tendril instance can be injected, just like any other service
+(function(serviceTwo, tendril) {
+    tendril(function(serviceThree) {
+
+    });
+});
+```
+
+##### Inject object
+```js
+Tendril()
+       .include({
+           serviceOneX: serviceOne,
+           serviceTwo: '2',
+           serviceThree: '3'
+       })(function(serviceOneX) {
+           expect(serviceOneX.two).to.equal('2');
+           expect(serviceOneX.three).to.equal('3');
+           done();
+       });
+```
+
+##### Include function without injecting it
+```js
+tendril
+.include('serviceTwo', fn, true) // third optional param to include()
+```
+
+### Submodules - TODO
 All subfolders in a module (with an index.js) are considered submodules and will attempt to be loaded
 
-##### Overriding submodules
+##### Overriding submodules - TODO
 ```js
 tendril.include('xyzService/oooService', function(abcService) {
     return {
         hello: 'world'
     }
-})
-```
-
-##### Lazy loading
-Only load modules if required by an 'edge' module
-Simply exclude the crawl function
-```js
-tendril.crawl([
-        path: __dirname+'/services',
-        postfix: 'Service'
-    ])(function(qweService, abcService, xyzService){
-    // services loaded
 })
 ```

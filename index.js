@@ -48,6 +48,7 @@ module.exports = function Tendril(config) {
             }, 1000);
     }
 
+    // Inject services into a function
     tendril._resolve = function resolve(fn) {
         var args = [];
         if (Array.isArray(fn)) {
@@ -72,6 +73,7 @@ module.exports = function Tendril(config) {
 
     };
 
+    // set debug config to true
     tendril.debug = function() {
         config.debug = true;
         return tendril;
@@ -91,6 +93,7 @@ module.exports = function Tendril(config) {
         });
     };
 
+    // crawl directory, including services
     tendril.crawl = function(crawls) {
         _.forEach(crawls, function(crawl) {
             fs.readdir(crawl.path, function(err, files) {
@@ -121,6 +124,7 @@ module.exports = function Tendril(config) {
         return Promise.resolve(services[name]);
     };
 
+    // directly include a service
     tendril.include = function include(name, service, inject) {
         inject = typeof inject !== 'undefined' ? inject : true;
         if (typeof name === 'object') {
