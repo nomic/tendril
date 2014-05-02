@@ -6,6 +6,8 @@ var chai = require('chai'),
   _ = require('lodash');
 
 describe('Tendril', function () {
+  this.timeout(100);
+  
   var Tendril = require('../');
 
   function serviceOne(serviceTwo, serviceThree) {
@@ -163,6 +165,16 @@ describe('Tendril', function () {
         expect(cnt).to.equal(3);
         done();
       });
+  });
+  
+  it('errors if missing dependencies', function(done) {
+    new Tendril()
+    (function(nonExistent, nonExistent2) {
+      done(new Error('Called function within nonExistent service'));
+    }).fail(function(err) {
+      expect(err.message).to.not.equal(undefined);
+      done();
+    });
   });
 
 

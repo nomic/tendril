@@ -85,6 +85,16 @@ tendril
 .include('serviceTwo', fn, true) // third optional param to include()
 ```
 
+##### Error handling for missing dependencies
+```js
+new Tendril()
+    (function(nonExistent, nonExistent2) {
+
+    }).fail(function(err) {
+      // Error: Tendril: Missing dependencies ["nonExistent","nonExistent2"]]
+    });
+```
+
 ### Submodules - TODO
 All subfolders in a module (with an index.js) are considered submodules and will attempt to be loaded
 

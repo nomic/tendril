@@ -20,39 +20,26 @@ function getParams(fn) {
 }
 
 module.exports = function Tendril(config) {
-  config = _.defaults(config || {}, {
-    debug: false
-  });
+  config = _.defaults(config || {}, {});
 
   var services = {
-    tendril: tendril
+    tendril: Promise.resolve(tendril)
   };
 
   // Chain is inner promise loop, used to sequence user function calls
   var chain = Promise.resolve(null);
-  var debugTimer = null;
+  var failHandler;
 
   function tendril(fn) {
     chain = chain.then(function () {
-      return tendril._resolve(fn);
+      return tendril._resolve(fn, true);
     });
 
     return tendril;
   }
 
-  function debugThrow(args) {
-    if (debugTimer) clearTimeout(debugTimer);
-    debugTimer = setTimeout(function () {
-      var missing = _.filter(args, function (dep) {
-        return services[dep].isPending();
-      });
-      if (missing.length)
-        console.error('MISSING DEPENDENCIES', missing);
-    }, 1000);
-  }
-
   // Inject services into a function
-  tendril._resolve = function resolve(fn) {
+  tendril._resolve = function resolve(fn, warn) {
     var args = [];
     if (Array.isArray(fn)) {
       var tmp = fn;
@@ -61,9 +48,15 @@ module.exports = function Tendril(config) {
     } else {
       args = getParams(fn);
     }
-
-    if (config.debug) {
-      debugThrow(args);
+    
+    if (warn) {
+      var missing = _.filter(args, function (dep) {
+        if (!services[dep]) return true;
+        return false;
+      });
+      if (missing.length) {
+        tendril._fail(new Error('Tendril: Missing dependencies ' + JSON.stringify(missing)));
+      }
     }
 
     return Promise.all(_.map(args, function (name) {
@@ -79,6 +72,17 @@ module.exports = function Tendril(config) {
   // set debug config to true
   tendril.debug = function () {
     config.debug = true;
+    return tendril;
+  };
+  
+  tendril._fail = function(err) {
+    if (failHandler) {
+      failHandler(err);
+    }
+  };
+  
+  tendril.fail = function(fn) {
+    failHandler = fn;
     return tendril;
   };
 
@@ -98,16 +102,24 @@ module.exports = function Tendril(config) {
 
   // crawl directory, including services
   tendril.crawl = function (crawls) {
-    _.forEach(crawls, function (crawl) {
-      fs.readdir(crawl.path, function (err, files) {
-        if (err) throw err;
+    
+    // crawling a directory blocks the resolution chain
+    chain = new Promise(function(resolve, reject) {
+    
+      _.forEach(crawls, function (crawl) {
+        fs.readdir(crawl.path, function (err, files) {
+          if (err) return reject(err);
 
-        _.forEach(files, function (file) {
-          var name = file.replace(/.js$/, '') + (crawl.postfix || '');
-          tendril.include(name, require(crawl.path + '/' + file));
+          _.forEach(files, function (file) {
+            var name = file.replace(/.js$/, '') + (crawl.postfix || '');
+            tendril.include(name, require(crawl.path + '/' + file));
+          });
+          
+          resolve();
         });
       });
-    });
+      
+    }).then(chain);
 
     return tendril;
   };
@@ -129,6 +141,12 @@ module.exports = function Tendril(config) {
 
   // directly include a service
   tendril.include = function include(name, service, inject) {
+    if (!services[name]) {
+      var deferred = Promise.defer();
+      services[name] = deferred.promise;
+      services[name].deferred = deferred;
+    }
+    
     inject = typeof inject !== 'undefined' ? inject : true;
     if (typeof name === 'object') {
       _.forEach(name, function (service, serviceName) {
@@ -140,6 +158,7 @@ module.exports = function Tendril(config) {
         typeof service === 'object' &&
         typeof service.setup === 'function') &&
       inject) {
+      
       if (typeof service === 'object') {
         service = service.setup;
       }
@@ -148,7 +167,7 @@ module.exports = function Tendril(config) {
           Promise.resolve(service.apply(null, arguments)).then(function (resolvedService) {
             tendril.include(name, resolvedService);
           });
-            }]), true);
+            }]));
     } else {
       if (services[name] && services[name].deferred) {
         services[name].deferred.resolve(Promise.resolve(service));
