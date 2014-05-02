@@ -1,3 +1,5 @@
+'use strict';
+/* jshint -W098 */
 var chai = require('chai'),
     expect = chai.expect,
     Promise = require('bluebird'),
@@ -23,7 +25,7 @@ describe('Tendril', function() {
     }
 
     it('value injection', function(done) {
-        Tendril()
+        new Tendril()
         .include('serviceTwo', '2')
         (['serviceTwo', 'tendril', function(serviceTwo, tendril) {
             expect(serviceTwo).to.equal('2');
@@ -36,7 +38,7 @@ describe('Tendril', function() {
     });
 
     it('function injection', function(done) {
-        Tendril()
+        new Tendril()
         .include('serviceTwo', '2')
         .include('serviceThree', '3')
         .include('serviceOne', serviceOne)
@@ -48,7 +50,7 @@ describe('Tendril', function() {
     });
 
     it('nested injection', function(done) {
-        Tendril()
+        new Tendril()
         .include('serviceTwo', '2')
         .include('serviceOne', serviceOne)
         .include('serviceThree', '3')
@@ -66,7 +68,7 @@ describe('Tendril', function() {
     });
 
     it('object property injection', function(done) {
-       Tendril()
+       new Tendril()
        .include({
            serviceOneX: serviceOne,
            serviceTwo: '2',
@@ -79,13 +81,14 @@ describe('Tendril', function() {
     });
 
     it('object .setup function injection', function(done) {
-        Tendril()
+        new Tendril()
         .include('serviceTwo', '2')
         .include('serviceThree', '3')
         .include('serviceOne', serviceOne)
         .include('setupService', {
             setup: function(serviceOne) {
                 return {
+                    one: serviceOne,
                     setup: true
                 };
             }
@@ -97,7 +100,7 @@ describe('Tendril', function() {
     });
 
     it('loading async', function(done) {
-        Tendril()
+        new Tendril()
         .include('serviceThree', '3')
         .include('serviceTwo', '2')
         .include('serviceOne', serviceOne)
@@ -109,7 +112,7 @@ describe('Tendril', function() {
     });
 
     it('load multiple services', function(done) {
-        Tendril()
+        new Tendril()
         .include('serviceTwo', '2')
         .include('serviceThree', '3')
         .include('serviceOne', serviceOne)
@@ -124,7 +127,7 @@ describe('Tendril', function() {
 
     // test crawl
     it('crawls', function(done) {
-        Tendril()
+        new Tendril()
         .crawl([{
                 path: __dirname+'/services',
                 postfix: 'Service'
@@ -137,12 +140,11 @@ describe('Tendril', function() {
     });
 
     it('chains', function(done) {
-
         var cnt = 0;
-        Tendril()
+        new Tendril()
         .include('testService', function(hjkService) {
             cnt++;
-            return new Promise(function(resolve, reject) {
+            return new Promise(function(resolve) {
                 _.delay(function() {
                     cnt++;
                     resolve('done');
@@ -152,6 +154,7 @@ describe('Tendril', function() {
         .crawl([{
             path: __dirname+'/services',
             postfix: 'Service'
+          
         }])(function(testService, abcService, hjkService, xyzService) {
             cnt++;
         })(function() {

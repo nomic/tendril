@@ -1,3 +1,4 @@
+'use strict';
 var Promise = require('bluebird'),
     _ = require('lodash'),
     fs = require('fs');
@@ -37,15 +38,15 @@ module.exports = function Tendril(config) {
         return tendril;
     }
 
-    function debugThrow() {
+    function debugThrow(args) {
         if (debugTimer) clearTimeout(debugTimer);
-            debugTimer = setTimeout(function() {
-                var missing = _.filter(args, function(dep) {
-                    return services[dep].isPending();
-                });
-                if (missing.length)
-                    console.error('MISSING DEPENDENCIES', missing);
-            }, 1000);
+        debugTimer = setTimeout(function() {
+            var missing = _.filter(args, function(dep) {
+                return services[dep].isPending();
+            });
+            if (missing.length)
+                console.error('MISSING DEPENDENCIES', missing);
+        }, 1000);
     }
 
     // Inject services into a function
@@ -60,7 +61,7 @@ module.exports = function Tendril(config) {
         }
 
         if (config.debug) {
-            debugThrow();
+            debugThrow(args);
         }
 
         return Promise.all(_.map(args, function(name){

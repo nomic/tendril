@@ -1,0 +1,29 @@
+{
+    "globals": {
+        "it": false,
+        "console": false,
+        "describe": false
+    },
+
+    "node" : true,
+  
+    "boss" : false,
+    "curly": false,
+    "debug": false,
+    "devel": false,
+    "eqeqeq": true,
+    "evil": true,
+    "forin": false,
+    "immed": true,
+    "laxbreak": false,
+    "newcap": true,
+    "noarg": true,
+    "noempty": false,
+    "nonew": false,
+    "plusplus": false,
+    "regexp": false,
+    "undef": true,
+    "sub": true,
+    "strict": false,
+    "unused": true
+}
