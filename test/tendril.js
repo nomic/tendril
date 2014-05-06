@@ -176,6 +176,20 @@ describe('Tendril', function () {
       done();
     });
   });
+  
+  it('detects circular dependencies', function(done) {
+    new Tendril()
+    .include('A', function(B) {
+      return 'A';
+    })
+    .include('B', function(A) {
+      return 'B';
+    })
+    .fail(function(err) {
+      expect(err.message);
+      done();
+    });
+  });
 
 
   // test optional inject params
