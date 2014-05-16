@@ -251,6 +251,26 @@ describe('Tendril', function () {
     });
   });
 
+  it('Single service instantiation', function (done) {
+    var abc = 0;
+    new Tendril()
+      .include('serviceTwo', function () {
+        abc += 1;
+      })
+      .include('serviceThree', function (serviceTwo) {
+        abc += 1;
+      }, null, false)
+      (function (serviceTwo) {
+        expect(abc).to.equal(2);
+      })
+      (function (serviceTwo) {
+        expect(abc).to.equal(2);
+      })
+      (function (serviceTwo) {
+        expect(abc).to.equal(2);
+        done();
+      }, done);
+  });
 
   // test optional inject params
   // test getters
