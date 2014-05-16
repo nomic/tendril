@@ -3,16 +3,11 @@ var Promise = require('bluebird'),
   _ = require('lodash'),
   fs = require('fs');
 
-module.exports = function Tendril() {
+module.exports = Tendril;
 
-  var constructors = {
-    tendril: tendril
-  };
-
-  var services = {
-      tendril: Promise.resolve(tendril)
-  };
-
+function Tendril() {
+  var constructors = { tendril: tendril };
+  var services = { tendril: Promise.resolve(tendril) };
   var requested = [];
 
   // Chain is inner promise loop, used to sequence user function calls
@@ -42,24 +37,6 @@ module.exports = function Tendril() {
 
     return tendril;
   }
-
-  // Inject services into a function
-  tendril._resolve = function resolve(fn, name) {
-    var args = [];
-    if (Array.isArray(fn)) {
-      var tmp = fn;
-      fn = fn.pop();
-      args = tmp;
-    } else {
-      args = getParams(fn);
-    }
-
-    return Promise.all(_.map(args, function (name) {
-      return tendril.get(name);
-    }))
-    .spread(fn);
-
-  };
 
   // crawl directory, including services
   tendril.crawl = function (crawls) {
@@ -110,7 +87,20 @@ module.exports = function Tendril() {
       return Promise.reject(new Error('Circular Dependency: ' + name));
     }
 
-    services[name] = tendril._resolve(constructors[name], name);
+    var constructor = constructors[name];
+    var args = [];
+    if (Array.isArray(constructor)) {
+      var tmp = constructor;
+      constructor = constructor.pop();
+      args = tmp;
+    } else {
+      args = getParams(constructor);
+    }
+
+    services[name] = Promise.all(_.map(args, function (name) {
+      return tendril.get(name);
+    }))
+    .spread(constructor);
 
     return services[name];
   };
