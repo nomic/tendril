@@ -155,6 +155,31 @@ describe('Tendril', function () {
       });
   });
 
+  it('optional lazy', function (done) {
+    new Tendril()
+      .include('counter', function () {
+        return {
+          cnt: 0
+        };
+      })
+      .include('unlazy', function (counter) {
+        counter.cnt = 1;
+      }, null, false)
+      (function (counter) {
+        expect(counter.cnt).to.equal(1);
+      })
+      .crawl([{
+        path: __dirname + '/services',
+        postfix: 'Service',
+        lazy: false
+      }])
+      (function (counter) {
+        expect(counter.cnt).to.equal(2);
+        done();
+      }, done);
+  });
+
+
   it('chains', function (done) {
     var cnt = 0;
     new Tendril()

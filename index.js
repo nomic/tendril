@@ -27,15 +27,9 @@ module.exports = function Tendril() {
 
   var services = {
       tendril: Promise.resolve(tendril)
-  }
+  };
 
-  function nameToConstructor(name) {
-    if (typeof services[name] === 'string') {
-      return require(services[name]);
-    }
-
-    return services[name];
-  }
+  var requested = [];
 
   // Chain is inner promise loop, used to sequence user function calls
   var chain = Promise.resolve(null);
@@ -44,6 +38,10 @@ module.exports = function Tendril() {
     errorHandler = errorHandler || _.noop;
 
     chain = chain.then(function () {
+
+      // resolve non-lazy services
+      return Promise.all(_.map(requested, tendril.get.bind(tendril)));
+    }).then(function () {
       var args = [];
       if (Array.isArray(fn)) {
         var tmp = fn;
@@ -115,12 +113,18 @@ module.exports = function Tendril() {
     chain = new Promise(function(resolve, reject) {
 
       _.forEach(crawls, function (crawl) {
+        var lazy = crawl.lazy == null ? true : crawl.lazy;
+
         fs.readdir(crawl.path, function (err, files) {
           if (err) return reject(err);
 
           _.forEach(files, function (file) {
             var name = file.replace(/.js$/, '') + (crawl.postfix || '');
             tendril.include(name, require(crawl.path + '/' + file));
+
+            if (!lazy) {
+              requested.push(name);
+            }
           });
 
           resolve();
@@ -155,11 +159,17 @@ module.exports = function Tendril() {
   };
 
   // directly include a service
-  tendril.include = function include(name, constructor, inject) {
+  tendril.include = function include(name, constructor, inject, lazy) {
 
-    inject = typeof inject !== 'undefined' ? inject : true;
+    inject = inject == null ? true : inject;
+    lazy = lazy == null ? true : lazy;
+
     if (!inject) {
       services[name] = Promise.resolve(constructor);
+    }
+
+    if (!lazy) {
+      requested.push(name);
     }
 
     if (typeof name === 'object') {
