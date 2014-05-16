@@ -90,7 +90,7 @@ tendril
 new Tendril()
     (function(nonExistent, nonExistent2) {
 
-    }).fail(function(err) {
+    }, function(err) {
       // Error: Tendril: Missing dependencies ["nonExistent","nonExistent2"]]
     });
 ```
