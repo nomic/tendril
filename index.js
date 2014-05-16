@@ -40,7 +40,9 @@ module.exports = function Tendril() {
   // Chain is inner promise loop, used to sequence user function calls
   var chain = Promise.resolve(null);
 
-  function tendril(fn) {
+  function tendril(fn, errorHandler) {
+    errorHandler = errorHandler || _.noop;
+
     chain = chain.then(function () {
       var args = [];
       if (Array.isArray(fn)) {
@@ -53,7 +55,7 @@ module.exports = function Tendril() {
 
       return Promise.all(_.map(args, function (serviceName) {
         return tendril.get(serviceName);
-      })).spread(fn);
+      })).spread(fn).then(null, errorHandler);
     });
 
     return tendril;
@@ -84,6 +86,27 @@ module.exports = function Tendril() {
     });
 
   };
+
+  function circularDependency(name, constructor) {
+    var containsSelf = _.contains(getParams(constructor), name);
+
+    if (containsSelf) {
+      return name;
+    }
+
+    var containedDependency = _.any(_.map(getParams(constructor), function (serviceName) {
+      if (services[serviceName]) {
+        return false;
+      }
+      return circularDependency(name, constructors[serviceName]);
+    }));
+
+    if (containedDependency) {
+      return containedDependency;
+    }
+
+    return null;
+  }
 
   // crawl directory, including services
   tendril.crawl = function (crawls) {
@@ -117,6 +140,15 @@ module.exports = function Tendril() {
 
     if (services[name]) {
       return services[name];
+    }
+
+    if (!constructors[name]) {
+      return Promise.reject(new Error('Missing Dependency'));
+    }
+
+    var circle = circularDependency(name, constructors[name]);
+    if (circle) {
+      return Promise.reject(new Error('Circular Dependency: ' + name));
     }
 
     return tendril._resolve(constructors[name], name);

@@ -178,31 +178,54 @@ describe('Tendril', function () {
         done();
       });
   });
-/*
+
   it('errors if missing dependencies', function(done) {
     new Tendril()
     (function(nonExistent, nonExistent2) {
       done(new Error('Called function within nonExistent service'));
-    }).fail(function(err) {
-      expect(err.message).to.not.equal(undefined);
+    }, function(err) {
+      try {
+        expect(err.message).to.not.equal(undefined);
+      } catch(e) {
+        return done(e);
+      }
+
       done();
     });
   });
 
   it('detects circular dependencies', function(done) {
     new Tendril()
-    .include('A', function(B) {
+    .include('A', function(A) {
       return 'A';
     })
-    .include('B', function(A) {
-      return 'B';
-    })
-    .fail(function(err) {
+    (function (A) {
+      throw new Error('Should not resolve');
+    }, function(err) {
       expect(err.message);
       done();
     });
   });
-*/
+
+  it('detects deep circular dependencies', function(done) {
+    new Tendril()
+    .include('A', function(B) {
+      return 'A';
+    })
+    .include('B', function (C) {
+      return 'B';
+    })
+    .include('C', function (A) {
+      return 'C';
+    })
+    (function (A) {
+      throw new Error('Should not resolve');
+    }, function(err) {
+      expect(err.message);
+      done();
+    });
+  });
+
 
   // test optional inject params
   // test getters
