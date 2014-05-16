@@ -260,14 +260,20 @@ describe('Tendril', function () {
       .include('serviceThree', function (serviceTwo) {
         abc += 1;
       }, null, false)
+      .include('serviceFour', function (serviceTwo) {
+        abc += 1;
+      }, null, false)
+      .include('serviceNever', function (serviceTwo) {
+        abc += 1;
+      })
+      (['serviceTwo', 'serviceTwo', function (serviceTwo, two, serviceThree) {
+        expect(abc).to.equal(3);
+      }])
       (function (serviceTwo) {
-        expect(abc).to.equal(2);
+        expect(abc).to.equal(3);
       })
       (function (serviceTwo) {
-        expect(abc).to.equal(2);
-      })
-      (function (serviceTwo) {
-        expect(abc).to.equal(2);
+        expect(abc).to.equal(3);
         done();
       }, done);
   });

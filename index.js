@@ -3,22 +3,6 @@ var Promise = require('bluebird'),
   _ = require('lodash'),
   fs = require('fs');
 
-function getParams(fn) {
-  var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
-  var commentsExp = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-  var argExp = /^\s*(\S+?)\s*$/;
-
-  var fnString = fn.toString().replace(commentsExp, '');
-  var match = fnString.match(functionExp);
-  var params = match && match[1];
-
-  if (!match || !params) return [];
-
-  return _.map(params.split(','), function (param) {
-    return param.match(argExp)[1];
-  });
-}
-
 module.exports = function Tendril() {
 
   var constructors = {
@@ -73,34 +57,9 @@ module.exports = function Tendril() {
     return Promise.all(_.map(args, function (name) {
       return tendril.get(name);
     }))
-    .spread(fn)
-    .then(function (service) {
-        services[name] = Promise.resolve(service);
-        return service;
-    });
+    .spread(fn);
 
   };
-
-  function circularDependency(name, constructor) {
-    var containsSelf = _.contains(getParams(constructor), name);
-
-    if (containsSelf) {
-      return name;
-    }
-
-    var containedDependency = _.any(_.map(getParams(constructor), function (serviceName) {
-      if (services[serviceName]) {
-        return false;
-      }
-      return circularDependency(name, constructors[serviceName]);
-    }));
-
-    if (containedDependency) {
-      return containedDependency;
-    }
-
-    return null;
-  }
 
   // crawl directory, including services
   tendril.crawl = function (crawls) {
@@ -151,7 +110,9 @@ module.exports = function Tendril() {
       return Promise.reject(new Error('Circular Dependency: ' + name));
     }
 
-    return tendril._resolve(constructors[name], name);
+    services[name] = tendril._resolve(constructors[name], name);
+
+    return services[name];
   };
 
   // directly include a service
@@ -191,5 +152,45 @@ module.exports = function Tendril() {
 
     return tendril;
   };
+
+  function circularDependency(name, constructor) {
+    var containsSelf = _.contains(getParams(constructor), name);
+
+    if (containsSelf) {
+      return name;
+    }
+
+    var containedDependency = _.any(_.map(getParams(constructor), function (serviceName) {
+      if (services[serviceName]) {
+        return false;
+      }
+      return circularDependency(name, constructors[serviceName]);
+    }));
+
+    if (containedDependency) {
+      return containedDependency;
+    }
+
+    return null;
+  }
+
   return tendril;
 };
+
+function getParams(fn) {
+  if (!fn) return [];
+
+  var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
+  var commentsExp = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+  var argExp = /^\s*(\S+?)\s*$/;
+
+  var fnString = fn.toString().replace(commentsExp, '');
+  var match = fnString.match(functionExp);
+  var params = match && match[1];
+
+  if (!match || !params) return [];
+
+  return _.map(params.split(','), function (param) {
+    return param.match(argExp)[1];
+  });
+}
