@@ -61,10 +61,6 @@ module.exports = function Tendril() {
 
   // Inject services into a function
   tendril._resolve = function resolve(fn, name) {
-    if (services[name]) {
-      return services[name];
-    }
-
     var args = [];
     if (Array.isArray(fn)) {
       var tmp = fn;
