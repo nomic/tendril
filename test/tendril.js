@@ -206,11 +206,23 @@ describe('Tendril', function () {
 
   it('errors if missing dependencies', function(done) {
     new Tendril()
-    (function(nonExistent, nonExistent2) {
+    (function(nonExistent) {
       done(new Error('Called function within nonExistent service'));
     }, function(err) {
       try {
-        expect(err.message).to.not.equal(undefined);
+        expect(err.message).to.equal('Missing Dependency: nonExistent');
+      } catch(e) {
+        return done(e);
+      }
+    })
+    .include('null1', function (abc) {})
+    .include('null2', function (abc) {})
+    (function(null1, null2) {
+      done(new Error('Called function within null service'));
+    }, function(err) {
+      try {
+        expect(err.message).to.equal('Missing Dependency: abc\n' +
+                                     'Depended on by: null1, null2');
       } catch(e) {
         return done(e);
       }

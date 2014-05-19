@@ -79,7 +79,18 @@ function Tendril() {
     }
 
     if (!constructors[name]) {
-      return Promise.reject(new Error('Missing Dependency'));
+      var message = 'Missing Dependency: ' + name;
+      var dependencies = _.mapValues(constructors, getParams);
+      var missing = _.reduce(dependencies, function (missing, dep, service) {
+        if (_.contains(dep, name)) {
+          return missing.concat(service);
+        }
+        return missing;
+      }, []);
+      if (missing.length) {
+        message += '\nDepended on by: ' + missing.join(', ');
+      }
+      return Promise.reject(new Error(message));
     }
 
     var circle = circularDependency(name, constructors[name]);
