@@ -94,8 +94,9 @@ function Tendril() {
     }
 
     var circle = circularDependency(name, constructors[name]);
-    if (circle) {
-      return Promise.reject(new Error('Circular Dependency: ' + name));
+    if (circle.length) {
+      return Promise.reject(new Error('Circular Dependency: ' +
+                                       [name].concat(circle).join(' --> ')));
     }
 
     var constructor = constructors[name];
@@ -158,25 +159,30 @@ function Tendril() {
     var containsSelf = _.contains(getParams(constructor), name);
 
     if (containsSelf) {
-      return name;
+      return [name];
     }
 
-    var containedDependency = _.any(_.map(getParams(constructor), function (serviceName) {
+    var containedDependency = _.reduce(getParams(constructor), function (circle, serviceName) {
       if (services[serviceName]) {
-        return false;
+        return circle;
       }
-      return circularDependency(name, constructors[serviceName]);
-    }));
+      var deeper = circularDependency(name, constructors[serviceName]);
+      if (deeper.length) {
+        return circle.concat([serviceName]).concat(deeper);
+      }
+      return circle;
 
-    if (containedDependency) {
+    }, []);
+
+    if (containedDependency.length) {
       return containedDependency;
     }
 
-    return null;
+    return [];
   }
 
   return tendril;
-};
+}
 
 function getParams(fn) {
   if (!fn) return [];

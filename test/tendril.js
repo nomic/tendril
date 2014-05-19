@@ -155,7 +155,7 @@ describe('Tendril', function () {
       });
   });
 
-  it('optional lazy', function (done) {
+  it('optional lazy include', function (done) {
     new Tendril()
       .include('counter', function () {
         return {
@@ -167,6 +167,16 @@ describe('Tendril', function () {
       }, null, false)
       (function (counter) {
         expect(counter.cnt).to.equal(1);
+        done();
+      }, done);
+  });
+
+  it('optional lazy crawl', function (done) {
+    new Tendril()
+      .include('counter', function () {
+        return {
+          cnt: 0
+        };
       })
       .crawl([{
         path: __dirname + '/services',
@@ -239,7 +249,7 @@ describe('Tendril', function () {
     (function (A) {
       throw new Error('Should not resolve');
     }, function(err) {
-      expect(err.message);
+      expect(err.message).to.equal('Circular Dependency: A --> A');
       done();
     });
   });
@@ -258,7 +268,7 @@ describe('Tendril', function () {
     (function (A) {
       throw new Error('Should not resolve');
     }, function(err) {
-      expect(err.message);
+      expect(err.message).to.equal('Circular Dependency: A --> B --> C --> A');
       done();
     });
   });
