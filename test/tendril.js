@@ -3,7 +3,8 @@
 var chai = require('chai'),
   expect = chai.expect,
   Promise = require('bluebird'),
-  _ = require('lodash');
+  _ = require('lodash'),
+  domain = require('domain');
 
 describe('Tendril', function () {
   this.timeout(100);
@@ -298,6 +299,25 @@ describe('Tendril', function () {
         expect(abc).to.equal(3);
         done();
       }, done);
+  });
+
+  it('throws if no error handler', function (done) {
+    var d = domain.create();
+    d.on('error', function (err) {
+      expect(err.message).not.to.equal(undefined);
+      done();
+    });
+
+    d.run(function () {
+      new Tendril()
+      .include('A', function(A) {
+        return 'A';
+      }, null, false)(function () {
+        throw new Error('Should not resolve');
+      });
+
+    });
+
   });
 
   // test optional inject params

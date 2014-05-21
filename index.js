@@ -13,8 +13,13 @@ function Tendril() {
   // Chain is inner promise loop, used to sequence user function calls
   var chain = Promise.resolve(null);
 
-  function tendril(fn, errorHandler) {
-    errorHandler = errorHandler || _.noop;
+  function tendril(fn, error) {
+    fn = fn || _.noop;
+    error = error || function (err) {
+      setImmediate(function () {
+        throw err;
+      });
+    };
 
     chain = chain.then(function () {
 
@@ -32,8 +37,8 @@ function Tendril() {
 
       return Promise.all(_.map(args, function (serviceName) {
         return tendril.get(serviceName);
-      })).spread(fn).then(null, errorHandler);
-    });
+      })).spread(fn);
+    }).then(null, error);
 
     return tendril;
   }
