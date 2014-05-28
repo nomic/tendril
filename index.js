@@ -1,7 +1,9 @@
 'use strict';
-var Promise = require('bluebird'),
-  _ = require('lodash'),
-  fs = require('fs');
+var Promise = require('bluebird');
+var _ = require('lodash');
+var fs = require('fs');
+
+var readdir = Promise.promisify(fs.readdir) ;
 
 module.exports = Tendril;
 
@@ -47,28 +49,46 @@ function Tendril() {
   tendril.crawl = function (crawls) {
 
     // crawling a directory blocks the resolution chain
-    chain = new Promise(function(resolve, reject) {
-
-      _.forEach(crawls, function (crawl) {
+    chain = Promise.all(_.map(crawls, function (crawl) {
         var lazy = crawl.lazy == null ? true : crawl.lazy;
 
-        fs.readdir(crawl.path, function (err, files) {
-          if (err) return reject(err);
+        return readdir(crawl.path).then(function (files) {
+          return Promise.all(_.map(files, function (file) {
 
-          _.forEach(files, function (file) {
-            var name = file.replace(/.js$/, '') + (crawl.postfix || '');
-            tendril.include(name, require(crawl.path + '/' + file));
-
-            if (!lazy) {
-              requested.push(name);
+            // only crawl .js files or directories with index.js
+            var isJsFile = /\.js$/.test(file);
+            var isDir = /^([^.]|\.\.)+$/.test(file);
+            if (!isJsFile && !isDir) {
+              return;
             }
-          });
 
-          resolve();
+            var name = file.replace(/\.js$/, '') + (crawl.postfix || '');
+
+            var include = function() {
+              tendril.include(name, require(crawl.path + '/' + file));
+
+              if (!lazy) {
+                requested.push(name);
+              }
+            };
+
+            if (isDir) {
+
+              // verify index.js exists
+              return readdir(crawl.path + '/' + file).then(function (files) {
+                if (_.contains(files, 'index.js')) {
+                  include();
+                }
+              });
+            } else {
+              include();
+              return;
+            }
+
+          }));
         });
-      });
-
-    }).then(chain);
+      }))
+      .then(chain);
 
     return tendril;
   };
