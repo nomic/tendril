@@ -2,6 +2,7 @@
 var Promise = require('bluebird');
 var _ = require('lodash');
 var fs = require('fs');
+var events = require('events');
 
 var readdir = Promise.promisify(fs.readdir) ;
 
@@ -11,6 +12,7 @@ function Tendril() {
   var constructors = { tendril: tendril };
   var services = { tendril: Promise.resolve(tendril) };
   var requested = [];
+  var eventEmitter = new events.EventEmitter();
 
   // Chain is inner promise loop, used to sequence user function calls
   var chain = Promise.resolve(null);
@@ -45,7 +47,29 @@ function Tendril() {
     return tendril;
   }
 
-  // crawl directory, including services
+  /*
+   * @param name - event name (e.g. serviceLoad)
+   * @param fn - callback fn -> { name: 'serviceName', instance: {Service} }
+   */
+  tendril.on = function (name, fn) {
+    eventEmitter.on(name, fn);
+    return tendril;
+  };
+
+
+  /*
+   * @typedef {Object} Crawl
+   *
+   * @param {String} path - absolute path of directory to crawl
+   * @param {String} [postfix=''] - String to append to filenames as services
+   * @param {Boolean} [lazy=true] - only load if required by another service
+   */
+
+  /*
+   * crawl a directory
+   *
+   * @param {Array<Crawl>} crawls
+   */
   tendril.crawl = function (crawls) {
 
     // crawling a directory blocks the resolution chain
@@ -139,10 +163,20 @@ function Tendril() {
     }))
     .spread(constructor);
 
+    eventEmitter.emit('serviceLoad', {
+      name: name,
+      instance: services[name]
+    });
+
     return services[name];
   };
 
-  // directly include a service
+  /*
+   * @param {String|Object} name - if object, keys are names and values are services
+   * @param {Anything|Function} service - the service, if function will inject
+   * @param {Boolean} [shouldInject=true] - should attempt to inject function
+   * @param {Boolean} [isLazy=true] - only load if required by a sub-service
+   */
   tendril.include = function include(name, constructor, inject, lazy) {
 
     inject = inject == null ? true : inject;

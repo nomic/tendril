@@ -320,6 +320,35 @@ describe('Tendril', function () {
 
   });
 
+  it('emits events', function (done) {
+    var loaded = [];
+
+    new Tendril()
+    .on('serviceLoad', function (service) {
+      loaded.push(service);
+    })
+    .include('A', function (B) {
+
+    })
+    .include('B', function () {
+
+    })
+    .include('C', function () {
+
+    })
+    (function (A) {
+      expect(loaded.length).to.equal(2);
+
+      expect(typeof loaded[0].instance).to.equal('object');
+      expect(loaded[0].name).to.equal('B');
+
+      expect(typeof loaded[1].instance).to.equal('object');
+      expect(loaded[1].name).to.equal('A');
+
+      done();
+    });
+  });
+
   // test optional inject params
   // test getters
   // test arrays
