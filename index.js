@@ -17,6 +17,9 @@ function Tendril() {
   // Chain is inner promise loop, used to sequence user function calls
   var chain = Promise.resolve(null);
 
+  /*
+   * @param {Function|Array<paramNames..,fn>} - param names are service names
+   */
   function tendril(fn, error) {
     fn = fn || _.noop;
     error = error || function (err) {
@@ -117,7 +120,11 @@ function Tendril() {
     return tendril;
   };
 
-  // returns a service
+  /*
+   * returns a service
+   *
+   * @param {String} name
+   */
   tendril.get = function get(name) {
     if (_.isArray(name)) {
       return Promise.all(_.map(name, get));
@@ -214,6 +221,12 @@ function Tendril() {
     return tendril;
   };
 
+  /*
+   * @param {String} name
+   * @param {Function} constructor
+   *
+   * @returns {Array<String>} - Service names, length is 0 if no circular deps
+   */
   function circularDependency(name, constructor) {
     var containsSelf = _.contains(getParams(constructor), name);
 
@@ -243,6 +256,11 @@ function Tendril() {
   return tendril;
 }
 
+/*
+ * @param {Function} fn
+ *
+ * @returns {Array<String>} - parameter names
+ */
 function getParams(fn) {
   if (!fn) return [];
 
