@@ -1,6 +1,6 @@
 {
   "name": "tendril",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -17,7 +17,20 @@
   },
   "dependencies": {
     "bluebird": "1.1.1",
-    "chai": "^1.9.1",
+    "chai": "1.9.1",
     "lodash": "2.4.1"
-  }
+  },
+  "description": "Fancy Dependecy Injection",
+  "bugs": {
+    "url": "https://github.com/nomic/tendril/issues"
+  },
+  "homepage": "https://github.com/nomic/tendril",
+  "keywords": [
+    "dependency",
+    "injection",
+    "di",
+    "wire",
+    "framework"
+  ],
+  "license": "MIT"
 }
