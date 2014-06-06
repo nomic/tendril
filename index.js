@@ -198,6 +198,12 @@ function Tendril() {
   return tendril;
 }
 
+/*
+ * @param {String} name
+ * @param {Object<String, Constructor>} constructors
+ *
+ * @returns {Error}
+ */
 function missingDependencyError(name, constructors) {
   var message = 'Missing Dependency: ' + name;
   var dependencies = _.mapValues(constructors, function (constructor) {
@@ -226,7 +232,7 @@ function missingDependencyError(name, constructors) {
 /*
  * @param {String} rootName
  * @param {String} childName
- * @param {Constructor} constructor
+ * @param {Object<String, Constructor>} constructors
  *
  * @returns {Array<String>|null} - Service names, null if no circular deps
  */
