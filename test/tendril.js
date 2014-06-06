@@ -263,15 +263,15 @@ describe('Tendril', function () {
     .include('B', function (C) {
       return 'B';
     })
-    .include('C', function (A) {
+    .include('C', ['A', function (A) {
       return 'C';
-    })
+    }])
     (function (A) {
       throw new Error('Should not resolve');
     }, function(err) {
       expect(err.message).to.equal('Circular Dependency: A --> B --> C --> A');
       done();
-    });
+    })(null, done);
   });
 
   it('Single service instantiation', function (done) {

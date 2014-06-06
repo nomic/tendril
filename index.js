@@ -11,7 +11,7 @@ module.exports = Tendril;
 function Tendril() {
 
   // function constructors
-  var constructors = { tendril: tendril };
+  var constructors = {};
 
   // loaded services
   var services = { tendril: Promise.resolve(tendril) };
@@ -39,15 +39,7 @@ function Tendril() {
       });
     };
 
-    // support named parameters ['abc', function(def) {}]
-    var args = [];
-    if (Array.isArray(fn)) {
-      var tmp = fn;
-      fn = fn.pop();
-      args = tmp;
-    } else {
-      args = getParams(fn);
-    }
+    var constructor = getConstructor(fn);
 
     // user functions must  complete in order, regardless of dependencies
     chain = chain.then(function () {
@@ -57,7 +49,7 @@ function Tendril() {
     }).then(function () {
 
       // resolve requested services, and pass them into the function
-      return Promise.map(args, getService).spread(fn);
+      return Promise.map(constructor.params, getService).spread(constructor.fn);
     }).then(null, error);
 
     return tendril;
@@ -106,11 +98,13 @@ function Tendril() {
       if (isDir) {
         return readdir(requirePath).then(function (files) {
           if (_.contains(files, 'index.js')) {
-            return tendril.include(serviceName, require(requirePath), true, crawl.lazy);
+            var service = require(requirePath);
+            return tendril.include(serviceName, service, true, crawl.lazy);
           }
         });
       } else if (isJsFile) {
-        return tendril.include(serviceName, require(requirePath), true, crawl.lazy);
+        var service = require(requirePath);
+        return tendril.include(serviceName, service, true, crawl.lazy);
       }
     }).then(chain);
 
@@ -119,16 +113,16 @@ function Tendril() {
 
 
   /*
-   * @param {String|Object} name - if object, keys are names and values are services
-   * @param {Anything|Function} service - the service, if function will inject
+   * @param {String|Object} name - if object, keys are names and values services
+   * @param {Anything|Function} constructor - the service, or resolved
    * @param {Boolean} [shouldInject=true] - should attempt to inject function
    * @param {Boolean} [isLazy=true] - only load if required by a sub-service
    */
   tendril.include = function include(name, constructor, inject, lazy) {
-
     inject = inject == null ? true : inject;
     lazy = lazy == null ? true : lazy;
 
+    // already initialized service
     if (!inject) {
       services[name] = Promise.resolve(constructor);
     }
@@ -137,6 +131,7 @@ function Tendril() {
       requested.push(name);
     }
 
+    // Including an object, where values are services and keys are names
     if (typeof name === 'object') {
       _.forEach(name, function (constructor, serviceName) {
         tendril.include(serviceName, constructor, inject);
@@ -151,7 +146,9 @@ function Tendril() {
         constructor = constructor.setup;
       }
 
-      constructors[name] = constructor;
+      constructors[name] = getConstructor(constructor);
+    } else if (inject && Array.isArray(constructor)) {
+      constructors[name] = getConstructor(constructor);
     } else {
       services[name] = Promise.resolve(constructor);
     }
@@ -175,31 +172,19 @@ function Tendril() {
     }
 
     if (!constructors[name]) {
-      return Promise.reject(missingDependencyError(name));
+      return Promise.reject(missingDependencyError(name, constructors));
     }
 
-    var circle = circularDependencies(name, constructors[name]);
+    var circle = circularDependencies(name, name, constructors);
     if (circle) {
       return Promise.reject(new Error('Circular Dependency: ' +
                                        [name].concat(circle).join(' --> ')));
     }
 
     var constructor = constructors[name];
-    var args = [];
 
-    // support named parameters ['abc', function(def) {}]
-    if (Array.isArray(constructor)) {
-      var tmp = constructor;
-      constructor = constructor.pop();
-      args = tmp;
-    } else {
-      args = getParams(constructor);
-    }
-
-    services[name] = Promise.all(_.map(args, function (name) {
-      return getService(name);
-    }))
-    .spread(constructor)
+    services[name] = Promise.map(constructor.params, getService)
+    .spread(constructor.fn)
     .tap(function () {
       eventEmitter.emit('serviceLoad', {
         name: name,
@@ -210,55 +195,92 @@ function Tendril() {
     return services[name];
   }
 
-  function missingDependencyError(name) {
-    var message = 'Missing Dependency: ' + name;
-    var dependencies = _.mapValues(constructors, getParams);
-    var missing = _.reduce(dependencies, function (missing, dep, service) {
-      if (_.contains(dep, name)) {
-        return missing.concat(service);
-      }
-      return missing;
-    }, []);
-    if (missing.length) {
-      message += '\nDepended on by: ' + missing.join(', ');
-    }
+  return tendril;
+}
 
-    return new Error(message);
+function missingDependencyError(name, constructors) {
+  var message = 'Missing Dependency: ' + name;
+  var dependencies = _.mapValues(constructors, function (constructor) {
+    return constructor.params;
+  });
+  var missing = _.reduce(dependencies, function (missing, dep, service) {
+    if (_.contains(dep, name)) {
+      return missing.concat(service);
+    }
+    return missing;
+  }, []);
+  if (missing.length) {
+    message += '\nDepended on by: ' + missing.join(', ');
   }
 
+  return new Error(message);
+}
 
-  /*
-   * @param {String} name
-   * @param {Function} constructor
-   *
-   * @returns {Array<String>|null} - Service names, null if no circular deps
-   */
-  function circularDependencies(name, constructor) {
-    var containsSelf = _.contains(getParams(constructor), name);
+/*
+ * typedef {Object} Constructor
+ *
+ * @param {Function} fn
+ * @param {Array<String>} params
+ */
 
-    if (containsSelf) {
-      return [name];
-    }
-
-    var innerCircularDependencies = _.reduce(getParams(constructor), function (circle, serviceName) {
-      var deeper = circularDependencies(name, constructors[serviceName]);
-
-      if (deeper) {
-        return circle.concat([serviceName]).concat(deeper);
-      }
-
-      return circle;
-
-    }, []);
-
-    if (innerCircularDependencies.length) {
-      return innerCircularDependencies;
-    }
-
+/*
+ * @param {String} rootName
+ * @param {String} childName
+ * @param {Constructor} constructor
+ *
+ * @returns {Array<String>|null} - Service names, null if no circular deps
+ */
+function circularDependencies(rootName, childName, constructors) {
+  var constructor = constructors[childName];
+  if (!rootName || !constructor) {
     return null;
   }
 
-  return tendril;
+  var containsSelf = _.contains(constructor.params, rootName);
+
+  if (containsSelf) {
+    return [rootName];
+  }
+
+  var innerCircularDependencies = _.reduce(constructor.params,
+    function (circle, serviceName) {
+    var deeper = circularDependencies(rootName, serviceName, constructors);
+
+    if (deeper) {
+      return circle.concat([serviceName]).concat(deeper);
+    }
+
+    return circle;
+
+  }, []);
+
+  if (innerCircularDependencies.length) {
+    return innerCircularDependencies;
+  }
+
+  return null;
+}
+
+
+/*
+ * @param {Function|Array<...Function>} fn
+ *
+ * @returns {Constructor}
+ */
+function getConstructor(fn) {
+  if (Array.isArray(fn)) {
+    var func = fn.pop();
+    var params = fn;
+    return {
+      fn: func,
+      params: params
+    };
+  } else {
+    return {
+      fn: fn,
+      params: getParams(fn)
+    };
+  }
 }
 
 /*
