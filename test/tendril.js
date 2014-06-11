@@ -28,65 +28,64 @@ describe('Tendril', function () {
     };
   }
 
-  it('value injection', function (done) {
-    new Tendril()
+  it('value injection', function () {
+    return new Tendril()
       .include('serviceTwo', '2')
-    (['serviceTwo', 'tendril',
+      .resolve(['serviceTwo', 'tendril',
       function (serviceTwo, tendril) {
         expect(serviceTwo).to.equal('2');
 
-        tendril(function (serviceTwo) {
+        return tendril.resolve(function (serviceTwo, tendril) {
           expect(serviceTwo).to.equal('2');
-          done();
         });
-        }]);
+      }]);
   });
 
-  it('function injection', function (done) {
-    new Tendril()
+  it('function injection', function () {
+    return new Tendril()
       .include('serviceTwo', '2')
       .include('serviceThree', '3')
+      .then(function (tendril) {
+        expect(tendril._isTendril).to.equal(true);
+      })
       .include('serviceOne', serviceOne)
-    (function (serviceOne) {
-      expect(serviceOne.two).to.equal('2');
-      expect(serviceOne.three).to.equal('3');
-      done();
-    });
+      .resolve(function (serviceOne) {
+        expect(serviceOne.two).to.equal('2');
+        expect(serviceOne.three).to.equal('3');
+      });
   });
 
-  it('nested injection', function (done) {
-    new Tendril()
+  it('nested injection', function () {
+    return new Tendril()
       .include('serviceTwo', '2')
       .include('serviceOne', serviceOne)
       .include('serviceThree', '3')
       .include('serviceFour', serviceFour)
-    (function (serviceOne, tendril) {
-      expect(serviceOne.two).to.equal('2');
-      expect(serviceOne.three).to.equal('3');
-
-      tendril(function (serviceFour) {
-        expect(serviceFour.one).to.equal('1');
-        done();
-      });
+      .resolve(function (serviceOne, tendril) {
+        expect(serviceOne.two).to.equal('2');
+        expect(serviceOne.three).to.equal('3');
+        return tendril.resolve(function (serviceFour) {
+          expect(serviceFour.one).to.equal('1');
+        });
     });
 
   });
 
-  it('object property injection', function (done) {
-    new Tendril()
+  it('object property injection', function () {
+    return new Tendril()
       .include({
         serviceOneX: serviceOne,
         serviceTwo: '2',
         serviceThree: '3'
-      })(function (serviceOneX) {
+      })
+      .resolve(function (serviceOneX) {
         expect(serviceOneX.two).to.equal('2');
         expect(serviceOneX.three).to.equal('3');
-        done();
       });
   });
 
-  it('object .setup function injection', function (done) {
-    new Tendril()
+  it('object .setup function injection', function () {
+    return new Tendril()
       .include('serviceTwo', '2')
       .include('serviceThree', '3')
       .include('serviceOne', serviceOne)
@@ -98,66 +97,62 @@ describe('Tendril', function () {
           };
         }
       })
-    (function (setupService) {
+    .resolve(function (setupService) {
       expect(setupService.setup).to.equal(true);
-      done();
     });
   });
 
-  it('loading async', function (done) {
-    new Tendril()
+  it('loading async', function () {
+    return new Tendril()
       .include('serviceThree', '3')
       .include('serviceTwo', '2')
       .include('serviceOne', serviceOne)
-    (function (serviceOne) {
+      .resolve(function (serviceOne) {
       expect(serviceOne.two).to.equal('2');
       expect(serviceOne.three).to.equal('3');
-      done();
     });
   });
 
-  it('lazy', function (done) {
-    new Tendril()
+  it('lazy', function () {
+    return new Tendril()
         .include('aaa', function () {
             throw new Error('NOT LAZY?!');
         })
         .include('serviceTwo', '2')
-        (function (serviceTwo) {
+        .resolve(function (serviceTwo) {
             expect(serviceTwo).to.equal('2');
-            done();
         });
   });
 
-  it('load multiple services', function (done) {
-    new Tendril()
+  it('load multiple services', function () {
+    return new Tendril()
       .include('serviceTwo', '2')
       .include('serviceThree', '3')
       .include('serviceOne', serviceOne)
       .include('serviceFour', serviceFour)
-    (function (serviceOne, serviceFour) {
-      expect(serviceOne.two).to.equal('2');
-      expect(serviceOne.three).to.equal('3');
-      expect(serviceFour.one).to.equal('1');
-      done();
+      .resolve(function (serviceOne, serviceFour) {
+        expect(serviceOne.two).to.equal('2');
+        expect(serviceOne.three).to.equal('3');
+        expect(serviceFour.one).to.equal('1');
     });
   });
 
   // test crawl
-  it('crawls', function (done) {
-    new Tendril()
+  it('crawls', function () {
+    return new Tendril()
       .crawl([{
         path: __dirname + '/services',
         postfix: 'Service'
-            }])(function (abcService, hjkService, xyzService) {
+            }])
+      .resolve(function (abcService, hjkService, xyzService) {
         expect(abcService.abc).to.equal('abc');
         expect(hjkService.abc).to.equal('abc');
         expect(xyzService.abc).to.equal('abc');
-        done();
       });
   });
 
-  it('optional lazy include', function (done) {
-    new Tendril()
+  it('optional lazy include', function () {
+    return new Tendril()
       .include('counter', function () {
         return {
           cnt: 0
@@ -166,14 +161,13 @@ describe('Tendril', function () {
       .include('unlazy', function (counter) {
         counter.cnt = 1;
       }, null, false)
-      (function (counter) {
+      .resolve(function (counter) {
         expect(counter.cnt).to.equal(1);
-        done();
-      }, done);
+      });
   });
 
-  it('optional lazy crawl', function (done) {
-    new Tendril()
+  it('optional lazy crawl', function () {
+    return new Tendril()
       .include('counter', function () {
         return {
           cnt: 0
@@ -184,16 +178,15 @@ describe('Tendril', function () {
         postfix: 'Service',
         lazy: false
       }])
-      (function (counter) {
+      .resolve(function (counter) {
         expect(counter.cnt).to.equal(2);
-        done();
-      }, done);
+      });
   });
 
 
-  it('chains', function (done) {
+  it('chains', function () {
     var cnt = 0;
-    new Tendril()
+    return new Tendril()
       .include('testService', function (hjkService) {
         cnt++;
         return new Promise(function (resolve) {
@@ -207,17 +200,19 @@ describe('Tendril', function () {
         path: __dirname + '/services',
         postfix: 'Service'
 
-        }])(function (testService, abcService, hjkService, xyzService) {
+        }])
+      .resolve(function (testService, abcService, hjkService, xyzService) {
         cnt++;
-      })(function () {
+      })
+      .resolve(function () {
         expect(cnt).to.equal(3);
-        done();
       });
   });
 
   it('errors if missing dependencies', function(done) {
-    new Tendril()
-    (function(nonExistent) {
+    return new Tendril()
+    .include('null0')
+    .resolve(function(nonExistent) {
       done(new Error('Called function within nonExistent service'));
     }, function(err) {
       try {
@@ -228,7 +223,7 @@ describe('Tendril', function () {
     })
     .include('null1', function (abc) {})
     .include('null2', function (abc) {})
-    (function(null1, null2) {
+    .resolve(function(null1, null2) {
       done(new Error('Called function within null service'));
     }, function(err) {
       try {
@@ -242,21 +237,20 @@ describe('Tendril', function () {
     });
   });
 
-  it('detects circular dependencies', function(done) {
-    new Tendril()
+  it('detects circular dependencies', function() {
+    return new Tendril()
     .include('A', function(A) {
       return 'A';
     })
-    (function (A) {
+    .resolve(function (A) {
       throw new Error('Should not resolve');
     }, function(err) {
       expect(err.message).to.equal('Circular Dependency: A --> A');
-      done();
     });
   });
 
-  it('detects deep circular dependencies', function(done) {
-    new Tendril()
+  it('detects deep circular dependencies', function() {
+    return new Tendril()
     .include('A', function(B) {
       return 'A';
     })
@@ -266,17 +260,16 @@ describe('Tendril', function () {
     .include('C', ['A', function (A) {
       return 'C';
     }])
-    (function (A) {
+    .resolve(function (A) {
       throw new Error('Should not resolve');
     }, function(err) {
       expect(err.message).to.equal('Circular Dependency: A --> B --> C --> A');
-      done();
-    })(null, done);
+    });
   });
 
-  it('Single service instantiation', function (done) {
+  it('Single service instantiation', function () {
     var abc = 0;
-    new Tendril()
+    return new Tendril()
       .include('serviceTwo', function () {
         abc += 1;
       })
@@ -289,16 +282,15 @@ describe('Tendril', function () {
       .include('serviceNever', function (serviceTwo) {
         abc += 1;
       })
-      (['serviceTwo', 'serviceTwo', function (serviceTwo, two, serviceThree) {
+      .resolve(['serviceTwo', 'serviceTwo', function (serviceTwo, two, serviceThree) {
         expect(abc).to.equal(3);
       }])
-      (function (serviceTwo) {
+      .resolve(function (serviceTwo) {
         expect(abc).to.equal(3);
       })
-      (function (serviceTwo) {
+      .resolve(function (serviceTwo) {
         expect(abc).to.equal(3);
-        done();
-      }, done);
+      });
   });
 
   it('throws if no error handler', function (done) {
@@ -312,7 +304,8 @@ describe('Tendril', function () {
       new Tendril()
       .include('A', function(A) {
         return 'A';
-      }, null, false)(function () {
+      }, null, false)
+      .resolve(function () {
         throw new Error('Should not resolve');
       });
 
@@ -320,10 +313,10 @@ describe('Tendril', function () {
 
   });
 
-  it('emits events', function (done) {
+  it('emits events', function () {
     var loaded = [];
 
-    new Tendril()
+    return new Tendril()
     .on('serviceLoad', function (service) {
       loaded.push(service);
     })
@@ -336,7 +329,7 @@ describe('Tendril', function () {
     .include('C', function () {
 
     })
-    (function (A) {
+    .resolve(function (A) {
       expect(loaded.length).to.equal(2);
 
       expect(typeof loaded[0].instance).to.equal('object');
@@ -344,8 +337,6 @@ describe('Tendril', function () {
 
       expect(typeof loaded[1].instance).to.equal('object');
       expect(loaded[1].name).to.equal('A');
-
-      done();
     });
   });
 
