@@ -8,7 +8,7 @@
 /*
  * @param {Function|Array<paramNames..,fn>} - param names are service names
  */
-tendril(function (a, b, c) {
+tendril.resolve(function (a, b, c) {
 
 })
 ```
@@ -50,9 +50,9 @@ tendril.on(name, fn)
 
 ##### Setup
 ```js
-var tendril = require('tendril')();
+var Tendril = require('tendril');
 
-tendril
+new Tendril()
   .crawl([{
     // where to look
     path: __dirname+'/services',
@@ -61,7 +61,8 @@ tendril
     postfix: 'Service',
 
     lazy: true // default
-  }])(function(abcService, xyzService) {
+  }])
+  .resolve(function(abcService, xyzService) {
     /* only named services loaded because of lazy flag */
   });
 ```
@@ -77,14 +78,14 @@ module.exports = function(xyzService) {
 
 ##### Include/Override
 ```js
-tendril
+new Tendril()
   .include('abcService', {hello: 'world'})
   .include('xyzService', function(abcService){
     return {
       hello: 'world'
     }
   })
-  (function(abcService, xyzService) {
+  .resolve(function(abcService, xyzService) {
       // services instantiated
   });
 
@@ -92,20 +93,20 @@ tendril
 
 ##### Named parameter injection
 ```js
-tendril
+new Tendril()
   .include('serviceTwo', '2')
-  (['serviceTwo', 'tendril', function(serviceTwo____, ____tendril) {
+  .resolve(['serviceTwo', 'tendril', function(serviceTwo____, ____tendril) {
 
   }]);
 ```
 
 ##### Nested Injection
 ```js
-tendril
+new Tendril()
   .include('serviceTwo', '2')
   .include('serviceThree', '3')
   // The current tendril instance can be injected, just like any other service
-  (function(serviceTwo, tendril) {
+  .resolve(function(serviceTwo, tendril) {
     tendril(function(serviceThree) {
 
     });
@@ -114,12 +115,13 @@ tendril
 
 ##### Inject object
 ```js
-tendril()
+new Tendril()
   .include({
     serviceOneX: serviceOne,
     serviceTwo: '2',
     serviceThree: '3'
-  })(function(serviceOneX) {
+  })
+  .resolve(function(serviceOneX) {
     expect(serviceOneX.two).to.equal('2');
     expect(serviceOneX.three).to.equal('3');
     done();
@@ -128,20 +130,21 @@ tendril()
 
 ##### Include function without injecting it
 ```js
-tendril
+new Tendril()
   .include('serviceTwo', fn, true) // third optional param to include()
 ```
 
 ##### Include function non-lazily
 ```js
-tendril
+new Tendril()
   .include('serviceTwo', fn, null, false)
 ```
 
 ##### Error handling for missing dependencies
 ```js
-tendril()
-  (function(nonExistent, nonExistent2) {
+new Tendril()
+  .include('null')
+  .resolve(function(nonExistent, nonExistent2) {
 
   }, function(err) {
     // Error: Tendril: Missing dependencies ["nonExistent","nonExistent2"]]
@@ -150,7 +153,7 @@ tendril()
 
 ##### Events
 ```js
-tendril()
+new Tendril()
   .on('serviceLoad', function (service) {
     /*
      * {
@@ -167,9 +170,10 @@ All subfolders in a module (with an index.js) are considered submodules and will
 
 ##### Overriding submodules - TODO
 ```js
-tendril.include('xyzService/oooService', function(abcService) {
-  return {
-    hello: 'world'
-  }
+new Tendril()
+  .include('xyzService/oooService', function(abcService) {
+    return {
+      hello: 'world'
+    }
 })
 ```
