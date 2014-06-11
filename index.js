@@ -9,7 +9,7 @@ module.exports = Tendril;
 
 function Tendril() {
 
-  // services which are not lazily loaded are loaded at the first function
+  // services which are not lazily loaded are loaded at the first resolve
   this.requested = [];
   this.constructors = {};
   this.services = { tendril: Promise.resolve(this).bind(this) };
@@ -205,8 +205,7 @@ Promise.prototype.crawl = function _crawl(crawl) {
 
 function classToInstanceFn(name) {
   return function () {
-    var tendril = new Tendril();
-    var promise = Promise.resolve(tendril).bind(tendril);
+    var promise = Promise.resolve(this).bind(this);
     return promise[name].apply(promise, arguments);
   };
 }

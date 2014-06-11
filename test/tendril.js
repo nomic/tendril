@@ -7,7 +7,7 @@ var chai = require('chai'),
   domain = require('domain');
 
 describe('Tendril', function () {
-  this.timeout(100);
+  this.timeout(200);
 
   var Tendril = require('../');
 
@@ -338,6 +338,26 @@ describe('Tendril', function () {
       expect(typeof loaded[1].instance).to.equal('object');
       expect(loaded[1].name).to.equal('A');
     });
+  });
+
+  it('nested with constructor', function () {
+    return new Tendril()
+      .include('router', _.noop, false)
+      .include('a', function (router) {
+        return 'a';
+      })
+      .resolve(function (tendril) {
+        return tendril
+          .include('b', 'b')
+          .resolve(function (router, a, b) {
+            expect(router()).to.equal(undefined);
+          }).then(null, function (err) {
+            console.log(err);
+          });
+      }).then(null, function (err) {
+        console.log(err);
+      });
+
   });
 
   // test optional inject params
