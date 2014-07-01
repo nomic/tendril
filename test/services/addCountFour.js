@@ -1,3 +1,3 @@
 module.exports = function (counter) {
-  counter.cnt += 2;
+  counter.cnt += 4;
 };

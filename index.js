@@ -3,7 +3,7 @@ var Promise = require('bluebird/js/main/promise')();
 var _ = require('lodash');
 var fs = require('fs');
 var events = require('events');
-var readdir = Promise.promisify(fs.readdir) ;
+var readdir = Promise.promisify(fs.readdir);
 
 module.exports = Tendril;
 
@@ -24,17 +24,41 @@ Promise.crawl = classToInstanceFn('crawl');
 Promise.on = classToInstanceFn('on');
 
 /*
+ * @typedef {Object} IncludeConfig
+ *
+ * @property {Boolean} [inject=true] - should attempt to inject function
+ * @property {Boolean} [lazy=true] - only load if required by a sub-service
+ */
+
+/*
  * @param {String|Object} name - if object, keys are names and values services
  * @param {Anything|Function} constructor - the service, or resolved
- * @param {Boolean} [shouldInject=true] - should attempt to inject function
- * @param {Boolean} [isLazy=true] - only load if required by a sub-service
+ * @param {IncludeConfig} config
  */
-Promise.prototype.include = function include(name, constructor, inject, lazy) {
+Promise.prototype.include = function include(name, constructor, config) {
+
+  // Legacy support for include(name, constructor, inject, lazy)
+  if (typeof config === 'boolean') {
+    config = {
+      inject: config
+    };
+  } else {
+    config = _.defaults(config || {}, {
+      inject: true,
+      lazy: true
+    });
+  }
+
+  if (arguments.length === 4) {
+    config.lazy = arguments[3] == null ? true : arguments[3];
+  }
+  // end legacy support
+
   var self = this;
   var tendril = self._boundTo;
   return this.then(function () {
-    inject = inject == null ? true : inject;
-    lazy = lazy == null ? true : lazy;
+    var inject = config.inject;
+    var lazy = config.lazy;
 
     // already initialized service
     if (!inject) {
@@ -117,7 +141,7 @@ Promise.prototype._getService = function getService(name) {
  * @param name - event name (e.g. serviceLoad)
  * @param fn - callback fn -> { name: 'serviceName', instance: {Service} }
  */
-Promise.prototype.on = function (name, fn) {
+Promise.prototype.on = function on(name, fn) {
   var self = this;
   var tendril = self._boundTo;
   return this.then(function () {
@@ -161,9 +185,10 @@ Promise.prototype.resolve = function resolve(fn, error) {
 /*
  * @typedef {Object} Crawl
  *
- * @param {String} path - absolute path of directory to crawl
- * @param {String} [postfix=''] - String to append to filenames as services
- * @param {Boolean} [lazy=true] - only load if required by another service
+ * @property {String} path - absolute path of directory to crawl
+ * @property {String} [postfix=''] - String to append to filenames as services
+ * @property {Boolean} [lazy=true] - only load if required by another service
+ * @property {Array} order - ordered dependencies to be immediately loaded
  */
 
 /*
@@ -173,34 +198,62 @@ Promise.prototype.resolve = function resolve(fn, error) {
  */
 Promise.prototype.crawl = function _crawl(crawl) {
   var self = this;
+  var tendril = self._boundTo;
   return this.then(function () {
 
     if (Array.isArray(crawl)) {
       return Promise.all(_.map(crawl, self.crawl.bind(self)));
     }
 
-    // crawling a directory blocks the resolution chain
-    return readdir(crawl.path).map(function (file) {
-      var isDir = /^([^.]|\.\.)+$/.test(file);
-      var isJsFile = /\.js$/.test(file);
-
+    var ordered = _.map(crawl.order || [], function (file) {
       var serviceName = file.replace(/\.js$/, '') + (crawl.postfix || '');
-      var requirePath = crawl.path + '/' + file;
-
-      // verify index.js exists
-      if (isDir) {
-        return readdir(requirePath).then(function (files) {
-          if (_.contains(files, 'index.js')) {
-            var service = require(requirePath);
-            return self.include(serviceName, service, true, crawl.lazy);
-          }
-        });
-      } else if (isJsFile) {
-        var service = require(requirePath);
-        return self.include(serviceName, service, true, crawl.lazy);
-      }
+      return {
+        serviceName: serviceName,
+        file: file
+      };
     });
+
+    return Promise.each(ordered, function (service) {
+      return includeFile(service.serviceName, service.file, crawl.path, false)
+        .then(function () {
+          return self.resolve();
+        });
+    })
+    .then(function () {
+      return readdir(crawl.path).map(function (file) {
+        var serviceName = file.replace(/\.js$/, '') + (crawl.postfix || '');
+        return includeFile(serviceName, file, crawl.path, crawl.lazy);
+      });
+    });
+  })
+  .then(function () {
+    return tendril;
   });
+
+  function includeFile(serviceName, file, path, lazy) {
+    var isDir = /^([^.]|\.\.)+$/.test(file);
+    var isJsFile = /\.js$/.test(file);
+
+    var requirePath = path + '/' + file;
+    var service;
+
+    // verify index.js exists
+    if (isDir) {
+      return readdir(requirePath).then(function (files) {
+        if (_.contains(files, 'index.js')) {
+          service = require(requirePath);
+          return self.include(serviceName, service, {
+            lazy: lazy
+          });
+        }
+      });
+    } else if (isJsFile) {
+      service = require(requirePath);
+      return self.include(serviceName, service, {
+        lazy: lazy
+      });
+    }
+  }
 };
 
 function classToInstanceFn(name) {
@@ -237,8 +290,8 @@ function missingDependencyError(name, constructors) {
 /*
  * typedef {Object} Constructor
  *
- * @param {Function} fn
- * @param {Array<String>} params
+ * @property {Function} fn
+ * @property {Array<String>} params
  */
 
 /*
@@ -281,6 +334,33 @@ function circularDependencies(rootName, childName, constructors) {
 
 
 /*
+ * @param {Function|Array<Function>} fn
+ *
+ * @returns {Array<String>} - parameter names
+ */
+function getParams(fn) {
+  if (!fn) {
+    return [];
+  }
+
+  var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
+  var commentsExp = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+  var argExp = /^\s*(\S+?)\s*$/;
+
+  var fnString = fn.toString().replace(commentsExp, '');
+  var match = fnString.match(functionExp);
+  var params = match && match[1];
+
+  if (!match || !params) {
+    return [];
+  }
+
+  return _.map(params.split(','), function (param) {
+    return param.match(argExp)[1];
+  });
+}
+
+/*
  * @param {Function|Array<...Function>} fn
  *
  * @returns {Constructor}
@@ -299,27 +379,4 @@ function getConstructor(fn) {
       params: getParams(fn)
     };
   }
-}
-
-/*
- * @param {Function|Array<Function>} fn
- *
- * @returns {Array<String>} - parameter names
- */
-function getParams(fn) {
-  if (!fn) return [];
-
-  var functionExp = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
-  var commentsExp = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-  var argExp = /^\s*(\S+?)\s*$/;
-
-  var fnString = fn.toString().replace(commentsExp, '');
-  var match = fnString.match(functionExp);
-  var params = match && match[1];
-
-  if (!match || !params) return [];
-
-  return _.map(params.split(','), function (param) {
-    return param.match(argExp)[1];
-  });
 }

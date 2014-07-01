@@ -140,10 +140,10 @@ describe('Tendril', function () {
   // test crawl
   it('crawls', function () {
     return new Tendril()
-      .crawl([{
+      .crawl({
         path: __dirname + '/services',
         postfix: 'Service'
-            }])
+      })
       .resolve(function (abcService, hjkService, xyzService) {
         expect(abcService.abc).to.equal('abc');
         expect(hjkService.abc).to.equal('abc');
@@ -160,7 +160,9 @@ describe('Tendril', function () {
       })
       .include('unlazy', function (counter) {
         counter.cnt = 1;
-      }, null, false)
+      }, {
+        lazy: false
+      })
       .resolve(function (counter) {
         expect(counter.cnt).to.equal(1);
       });
@@ -179,7 +181,7 @@ describe('Tendril', function () {
         lazy: false
       }])
       .resolve(function (counter) {
-        expect(counter.cnt).to.equal(2);
+        expect(counter.cnt).to.equal(6);
       });
   });
 
@@ -275,10 +277,14 @@ describe('Tendril', function () {
       })
       .include('serviceThree', function (serviceTwo) {
         abc += 1;
-      }, null, false)
+      }, {
+        lazy: false
+      })
       .include('serviceFour', function (serviceTwo) {
         abc += 1;
-      }, null, false)
+      }, {
+        lazy: false
+      })
       .include('serviceNever', function (serviceTwo) {
         abc += 1;
       })
@@ -304,7 +310,9 @@ describe('Tendril', function () {
       new Tendril()
       .include('A', function(A) {
         return 'A';
-      }, null, false)
+      }, {
+        lazy: false
+      })
       .resolve(function () {
         throw new Error('Should not resolve');
       });
@@ -358,6 +366,24 @@ describe('Tendril', function () {
         console.log(err);
       });
 
+  });
+
+  it('crawls with order', function () {
+    return new Tendril()
+      .include('counter', {cnt: 0})
+      .crawl({
+        path: __dirname + '/services',
+        postfix: 'Service',
+        order: ['notlazy.js']
+      })
+      .then(function (tendril) {
+        return tendril.services.counter.then(function (counter) {
+          expect(counter.cnt).to.equal(2);
+        });
+      })
+      .resolve(function (counter, addCountFourService) {
+        expect(counter.cnt).to.equal(6);
+      });
   });
 
   // test optional inject params

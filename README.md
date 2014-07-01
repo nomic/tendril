@@ -14,26 +14,33 @@ tendril.resolve(function (a, b, c) {
 ```
 ```js
 /*
- * @param {String|Object} name - if object, keys are names and values are services
- * @param {Anything|Function} service - the service, if function will inject
- * @param {Boolean} [shouldInject=true] - should attempt to inject function
- * @param {Boolean} [isLazy=true] - only load if required by a sub-service
+ * @typedef {Object} IncludeConfig
+ *
+ * @property {Boolean} [inject=true] - should attempt to inject function
+ * @property {Boolean} [lazy=true] - only load if required by a sub-service
  */
-tendril.include(name, service, shouldInject, isLazy)
+
+/*
+ * @param {String|Object} name - if object, keys are names and values services
+ * @param {Anything|Function} constructor - the service, or resolved
+ * @param {IncludeConfig} config
+ */
+tendril.include(name, service, config)
 ```
 ```js
 /*
  * @typedef {Object} Crawl
  *
- * @param {String} path - absolute path of directory to crawl
- * @param {String} [postfix=''] - String to append to filenames as services
- * @param {Boolean} [lazy=true] - only load if required by another service
+ * @property {String} path - absolute path of directory to crawl
+ * @property {String} [postfix=''] - String to append to filenames as services
+ * @property {Boolean} [lazy=true] - only load if required by another service
+ * @property {Array} order - ordered dependencies to be immediately loaded
  */
 
 /*
  * crawl a directory
  *
- * @param {Array<Crawl>} crawls
+ * @param {Array<Crawl>|Crawl} crawls
  */
 tendril.crawl(crawls)
 
@@ -163,6 +170,16 @@ new Tendril()
      */
   })
   .include('A', 'a')
+```
+
+##### Ordered crawling
+```js
+new Tendril()
+  .crawl({
+    path: __dirname + '/services',
+    postfix: 'Service',
+    order: ['notlazy.js']
+  })
 ```
 
 ### Submodules - TODO
