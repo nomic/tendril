@@ -22,7 +22,6 @@ Tendril.prototype = Object.create(Promise);
 Promise.include = classToInstanceFn('include');
 Promise.crawl = classToInstanceFn('crawl');
 Promise.on = classToInstanceFn('on');
-Promise.graph = classToInstanceFn('graph');
 
 /*
  * @typedef {Object} IncludeConfig
