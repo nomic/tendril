@@ -22,6 +22,7 @@ Tendril.prototype = Object.create(Promise);
 Promise.include = classToInstanceFn('include');
 Promise.crawl = classToInstanceFn('crawl');
 Promise.on = classToInstanceFn('on');
+Promise.graph = classToInstanceFn('graph');
 
 /*
  * @typedef {Object} IncludeConfig
@@ -179,6 +180,39 @@ Promise.prototype.resolve = function resolve(fn, error) {
     .then(function () {
       return tendril;
     });
+  });
+};
+
+Promise.prototype.graph = function(fn, options) {
+  options = options || {};
+  var name = options.name || "graph";
+  var ignore = options.ignore || [];
+  var size = options.size || [20, 20];
+
+  var self = this;
+  var tendril = self._boundTo;
+  return this.then(function() {
+    var dotDependencies = _.filter( _.flatten(
+      _.map(tendril.constructors, function(constructor, dependent) {
+        return _.map(constructor.params, function(dependee) {
+          if (
+            _.any(ignore, function(regexp) {
+              return regexp.test(dependee);
+            })
+          ) return;
+          return '"' + dependent + '" -> "' + dependee + '";';
+        });
+      })
+    ));
+    var dotFormatted = (
+      'digraph ' + name + ' {\n' +
+      '    size="' + size.join(',') + '";\n' +
+      '    node [color=lightblue2, style=filled];\n' +
+      '    ' + dotDependencies.join('\n    ') + '\n' +
+      '}'
+    );
+    fn(dotFormatted);
+    return tendril;
   });
 };
 
