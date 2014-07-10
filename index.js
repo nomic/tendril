@@ -183,35 +183,20 @@ Promise.prototype.resolve = function resolve(fn, error) {
   });
 };
 
-Promise.prototype.graph = function(fn, options) {
-  options = options || {};
-  var name = options.name || "graph";
-  var ignore = options.ignore || [];
-  var size = options.size || [20, 20];
-
+Promise.prototype.dependencies = function(fn) {
   var self = this;
   var tendril = self._boundTo;
+
+  //
+  // For now, just supporting graphviz "dot" formatting.
+  //
   return this.then(function() {
-    var dotDependencies = _.filter( _.flatten(
-      _.map(tendril.constructors, function(constructor, dependent) {
-        return _.map(constructor.params, function(dependee) {
-          if (
-            _.any(ignore, function(regexp) {
-              return regexp.test(dependee);
-            })
-          ) return;
-          return '"' + dependent + '" -> "' + dependee + '";';
-        });
+    var dependencies = (
+      _.mapValues(tendril.constructors, function(constructor) {
+        return constructor.params;
       })
-    ));
-    var dotFormatted = (
-      'digraph ' + name + ' {\n' +
-      '    size="' + size.join(',') + '";\n' +
-      '    node [color=lightblue2, style=filled];\n' +
-      '    ' + dotDependencies.join('\n    ') + '\n' +
-      '}'
     );
-    fn(dotFormatted);
+    fn(dependencies);
     return tendril;
   });
 };
