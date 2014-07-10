@@ -28,6 +28,10 @@ describe('Tendril', function () {
     };
   }
 
+  it('doesn\' touch bluebird', function () {
+    expect(require('bluebird').include).to.equal(undefined);
+  });
+
   it('value injection', function () {
     return new Tendril()
       .include('serviceTwo', '2')
