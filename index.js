@@ -22,7 +22,6 @@ Tendril.prototype = Object.create(Promise);
 Promise.include = classToInstanceFn('include');
 Promise.crawl = classToInstanceFn('crawl');
 Promise.on = classToInstanceFn('on');
-Promise.graph = classToInstanceFn('graph');
 
 /*
  * @typedef {Object} IncludeConfig
@@ -195,9 +194,6 @@ Promise.prototype.dependencies = function(fn) {
   var self = this;
   var tendril = self._boundTo;
 
-  //
-  // For now, just supporting graphviz "dot" formatting.
-  //
   return this.then(function() {
     var dependencies = _.extend(
       _.mapValues(tendril.constructors, function(constructor) {
