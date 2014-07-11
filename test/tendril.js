@@ -390,6 +390,30 @@ describe('Tendril', function () {
       });
   });
 
+  it('returns from promises unresolved', function () {
+    var resolved = false;
+
+    return Promise.resolve(null).then(function () {
+      return new Tendril()
+        .include('resolved', function () {
+          resolved = true;
+        }, {
+          lazy: false
+        });
+    })
+    .then(function (tendril) {
+      return tendril
+        .include('resolved', function () {
+          resolved = true;
+        });
+    })
+    .then(function () {
+      expect(resolved).to.equal(false);
+    });
+
+
+  });
+
   // test optional inject params
   // test getters
   // test arrays
