@@ -186,9 +186,6 @@ Promise.prototype.dependencies = function(fn) {
   var self = this;
   var tendril = self._boundTo;
 
-  //
-  // For now, just supporting graphviz "dot" formatting.
-  //
   return this.then(function() {
     var dependencies = (
       _.mapValues(tendril.constructors, function(constructor) {
