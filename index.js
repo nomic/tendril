@@ -182,6 +182,21 @@ Promise.prototype.resolve = function resolve(fn, error) {
   });
 };
 
+Promise.prototype.dependencies = function(fn) {
+  var self = this;
+  var tendril = self._boundTo;
+
+  return this.then(function() {
+    var dependencies = (
+      _.mapValues(tendril.constructors, function(constructor) {
+        return constructor.params;
+      })
+    );
+    fn(dependencies);
+    return tendril;
+  });
+};
+
 /*
  * @typedef {Object} Crawl
  *
