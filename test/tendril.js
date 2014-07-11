@@ -386,6 +386,44 @@ describe('Tendril', function () {
       });
   });
 
+  it('dependencies: no objects', function () {
+    return new Tendril()
+      .include()
+      .dependencies(function(dependencies) {
+        expect(dependencies).to.eql({});
+      });
+  });
+
+  it('dependencies: objects with no dependencies', function () {
+    return Promise.all([
+      new Tendril()
+        .include('a', function(){})
+        .dependencies(function(dependencies) {
+          expect(dependencies).to.eql({a: []});
+        }),
+      new Tendril()
+        .include('a', {})
+        .dependencies(function(dependencies) {
+          expect(dependencies).to.eql({a: []});
+        })
+    ]);
+
+  });
+
+  it('dependencies: several dependencies', function () {
+    return new Tendril()
+      .include('a', function(b, c){})
+      .include('b', function(c, d){})
+      .include('c', function(e){})
+      .dependencies(function(dependencies) {
+        expect(dependencies).to.eql({
+          a: ['b', 'c'],
+          b: ['c', 'd'],
+          c: ['e']
+        });
+      });
+  });
+
   // test optional inject params
   // test getters
   // test arrays
