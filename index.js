@@ -1,9 +1,9 @@
 'use strict';
-var Promise = require('bluebird/js/main/promise')();
+var TendrilPromise = require('bluebird/js/main/promise')();
 var _ = require('lodash');
 var fs = require('fs');
 var events = require('events');
-var readdir = Promise.promisify(fs.readdir);
+var readdir = TendrilPromise.promisify(fs.readdir);
 
 module.exports = Tendril;
 
@@ -12,16 +12,10 @@ function Tendril() {
   // services which are not lazily loaded are loaded at the first resolve
   this.requested = [];
   this.constructors = {};
-  this.services = { tendril: Promise.resolve(this).bind(this) };
+  this.services = { tendril: TendrilPromise.resolve(this).bind(this) };
   this.eventEmitter = new events.EventEmitter();
   this._isTendril = true;
 }
-
-Tendril.prototype = Object.create(Promise);
-
-Promise.include = classToInstanceFn('include');
-Promise.crawl = classToInstanceFn('crawl');
-Promise.on = classToInstanceFn('on');
 
 /*
  * @typedef {Object} IncludeConfig
@@ -35,7 +29,8 @@ Promise.on = classToInstanceFn('on');
  * @param {Anything|Function} constructor - the service, or resolved
  * @param {IncludeConfig} config
  */
-Promise.prototype.include = function include(name, constructor, config) {
+Tendril.prototype.include = function include(name, constructor, config) {
+  var self = this;
 
   // Legacy support for include(name, constructor, inject, lazy)
   if (typeof config === 'boolean') {
@@ -54,25 +49,27 @@ Promise.prototype.include = function include(name, constructor, config) {
   }
   // end legacy support
 
-  var self = this;
-  var tendril = self._boundTo;
-  return this.then(function () {
+  return TendrilPromise.try(function () {
+    config = _.defaults(config || {}, {
+      inject: true,
+      lazy: true
+    });
     var inject = config.inject;
     var lazy = config.lazy;
 
     // already initialized service
     if (!inject) {
-      tendril.services[name] = Promise.resolve(constructor);
+      self.services[name] = TendrilPromise.resolve(constructor);
     }
 
     if (!lazy) {
-      tendril.requested.push(name);
+      self.requested.push(name);
     }
 
     // Including an object, where values are services and keys are names
     if (typeof name === 'object') {
-      return Promise.all(_.map(name, function (constructor, serviceName) {
-        return self.include(serviceName, constructor, inject);
+      return TendrilPromise.all(_.map(name, function (constructor, serviceName) {
+        return self.include(serviceName, constructor, config);
       }));
 
       // constructor is a function or has a setup function on it
@@ -84,15 +81,16 @@ Promise.prototype.include = function include(name, constructor, config) {
         constructor = constructor.setup;
       }
 
-      tendril.constructors[name] = getConstructor(constructor);
+      self.constructors[name] = getConstructor(constructor);
     } else if (inject && Array.isArray(constructor)) {
-      tendril.constructors[name] = getConstructor(constructor);
+      self.constructors[name] = getConstructor(constructor);
     } else {
-      tendril.services[name] = Promise.resolve(constructor);
+      self.services[name] = TendrilPromise.resolve(constructor);
     }
-
-    return tendril;
-  });
+  })
+  .then(function () {
+    return self;
+  }).bind(this);
 };
 
 /*
@@ -100,63 +98,50 @@ Promise.prototype.include = function include(name, constructor, config) {
  *
  * @param {String} name
  */
-Promise.prototype._getService = function getService(name) {
+Tendril.prototype._getService = function getService(name) {
   var self = this;
-  var tendril = self._boundTo;
-  return this.then(function () {
+  return TendrilPromise.try(function () {
     if (_.isArray(name)) {
-      return Promise.all(_.map(name, getService));
+      return TendrilPromise.all(_.map(name, getService));
     }
 
-    if (tendril.services[name]) {
-      return tendril.services[name];
+    if (self.services[name]) {
+      return self.services[name];
     }
 
-    if (!tendril.constructors[name]) {
-      return Promise.reject(missingDependencyError(name, tendril.constructors));
+    if (!self.constructors[name]) {
+      return TendrilPromise.reject(missingDependencyError(name, self.constructors));
     }
 
-    var circle = circularDependencies(name, name, tendril.constructors);
+    var circle = circularDependencies(name, name, self.constructors);
     if (circle) {
-      return Promise.reject(new Error('Circular Dependency: ' +
+      return TendrilPromise.reject(new Error('Circular Dependency: ' +
                                        [name].concat(circle).join(' --> ')));
     }
 
-    var constructor = tendril.constructors[name];
+    var constructor = self.constructors[name];
 
-    tendril.services[name] = Promise.map(constructor.params, self._getService.bind(self))
+    self.services[name] = TendrilPromise.map(
+                            constructor.params,
+                            self._getService.bind(self))
     .spread(constructor.fn)
     .tap(function () {
-      tendril.eventEmitter.emit('serviceLoad', {
+      self.eventEmitter.emit('serviceLoad', {
         name: name,
-        instance: tendril.services[name]
+        instance: self.services[name]
       });
     });
 
-    return tendril.services[name];
-  });
-};
-
-/*
- * @param name - event name (e.g. serviceLoad)
- * @param fn - callback fn -> { name: 'serviceName', instance: {Service} }
- */
-Promise.prototype.on = function on(name, fn) {
-  var self = this;
-  var tendril = self._boundTo;
-  return this.then(function () {
-    tendril.eventEmitter.on(name, fn);
-    return tendril;
-  });
+    return self.services[name];
+  }).bind(this);
 };
 
 /*
  * @param {Function|Array<paramNames..,fn>} - param names are service names
  */
-Promise.prototype.resolve = function resolve(fn, error) {
+Tendril.prototype.resolve = function resolve(fn, error) {
   var self = this;
-  var tendril = self._boundTo;
-  return this.then(function () {
+  return TendrilPromise.try(function () {
     // default values
     fn = fn || _.noop;
     error = error || function (err) {
@@ -167,19 +152,30 @@ Promise.prototype.resolve = function resolve(fn, error) {
 
     var constructor = getConstructor(fn);
 
-    return self.then(function () {
-
-      // resolve non-lazy services
-      return Promise.map(tendril.requested, self._getService.bind(self));
-    }).then(function () {
+    // resolve non-lazy services
+    return TendrilPromise.each(self.requested, self._getService.bind(self))
+    .then(function () {
 
       // resolve requested services, and pass them into the function
-      return Promise.map(constructor.params, self._getService.bind(self)).spread(constructor.fn);
-    }).then(null, error)
-    .then(function () {
-      return tendril;
-    });
-  });
+      return TendrilPromise.map(constructor.params, self._getService.bind(self))
+        .spread(constructor.fn);
+    }).then(null, error);
+  })
+  .then(function () {
+    return self;
+  }).bind(this);
+};
+
+/*
+ * @param name - event name (e.g. serviceLoad)
+ * @param fn - callback fn -> { name: 'serviceName', instance: {Service} }
+ */
+Tendril.prototype.on = function on(name, fn) {
+  var self = this;
+  return TendrilPromise.try(function () {
+    self.eventEmitter.on(name, fn);
+    return self;
+  }).bind(this);
 };
 
 /*
@@ -188,7 +184,6 @@ Promise.prototype.resolve = function resolve(fn, error) {
  * @property {String} path - absolute path of directory to crawl
  * @property {String} [postfix=''] - String to append to filenames as services
  * @property {Boolean} [lazy=true] - only load if required by another service
- * @property {Array} order - ordered dependencies to be immediately loaded
  */
 
 /*
@@ -196,39 +191,22 @@ Promise.prototype.resolve = function resolve(fn, error) {
  *
  * @param {Crawl|Array<Crawl>} crawl
  */
-Promise.prototype.crawl = function _crawl(crawl) {
+Tendril.prototype.crawl = function _crawl(crawl) {
   var self = this;
-  var tendril = self._boundTo;
-  return this.then(function () {
+  return TendrilPromise.try(function () {
 
     if (Array.isArray(crawl)) {
-      return Promise.all(_.map(crawl, self.crawl.bind(self)));
+      return TendrilPromise.all(_.map(crawl, self.crawl.bind(self)));
     }
 
-    var ordered = _.map(crawl.order || [], function (file) {
+    return readdir(crawl.path).map(function (file) {
       var serviceName = file.replace(/\.js$/, '') + (crawl.postfix || '');
-      return {
-        serviceName: serviceName,
-        file: file
-      };
-    });
-
-    return Promise.each(ordered, function (service) {
-      return includeFile(service.serviceName, service.file, crawl.path, false)
-        .then(function () {
-          return self.resolve();
-        });
-    })
-    .then(function () {
-      return readdir(crawl.path).map(function (file) {
-        var serviceName = file.replace(/\.js$/, '') + (crawl.postfix || '');
-        return includeFile(serviceName, file, crawl.path, crawl.lazy);
-      });
+      return includeFile(serviceName, file, crawl.path, crawl.lazy);
     });
   })
   .then(function () {
-    return tendril;
-  });
+    return self;
+  }).bind(this);
 
   function includeFile(serviceName, file, path, lazy) {
     var isDir = /^([^.]|\.\.)+$/.test(file);
@@ -256,12 +234,21 @@ Promise.prototype.crawl = function _crawl(crawl) {
   }
 };
 
-function classToInstanceFn(name) {
-  return function () {
-    var promise = Promise.resolve(this).bind(this);
-    return promise[name].apply(promise, arguments);
+TendrilPromise.prototype = _.assign(TendrilPromise.prototype,
+                      _.transform(Object.keys(Tendril.prototype),
+                      function (methods, methodName) {
+
+  methods[methodName] = function () {
+    var tendril = this._boundTo;
+    var args = arguments;
+    return this._then(function () {
+      if (!tendril || !tendril._isTendril) {
+        throw new Error('Missing tendril object binding');
+      }
+      return tendril[methodName].apply(tendril, args);
+    });
   };
-}
+}, {}));
 
 /*
  * @param {String} name
