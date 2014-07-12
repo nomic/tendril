@@ -34,7 +34,6 @@ tendril.include(name, service, config)
  * @property {String} path - absolute path of directory to crawl
  * @property {String} [postfix=''] - String to append to filenames as services
  * @property {Boolean} [lazy=true] - only load if required by another service
- * @property {Array} order - ordered dependencies to be immediately loaded
  */
 
 /*
@@ -170,16 +169,6 @@ new Tendril()
      */
   })
   .include('A', 'a')
-```
-
-##### Ordered crawling
-```js
-new Tendril()
-  .crawl({
-    path: __dirname + '/services',
-    postfix: 'Service',
-    order: ['notlazy.js']
-  })
 ```
 
 ### Submodules - TODO

@@ -141,7 +141,6 @@ describe('Tendril', function () {
     });
   });
 
-  // test crawl
   it('crawls', function () {
     return new Tendril()
       .crawl({
@@ -205,8 +204,7 @@ describe('Tendril', function () {
       .crawl([{
         path: __dirname + '/services',
         postfix: 'Service'
-
-        }])
+      }])
       .resolve(function (testService, abcService, hjkService, xyzService) {
         cnt++;
       })
@@ -303,28 +301,6 @@ describe('Tendril', function () {
       });
   });
 
-  it('throws if no error handler', function (done) {
-    var d = domain.create();
-    d.on('error', function (err) {
-      expect(err.message).not.to.equal(undefined);
-      done();
-    });
-
-    d.run(function () {
-      new Tendril()
-      .include('A', function(A) {
-        return 'A';
-      }, {
-        lazy: false
-      })
-      .resolve(function () {
-        throw new Error('Should not resolve');
-      });
-
-    });
-
-  });
-
   it('emits events', function () {
     var loaded = [];
 
@@ -363,31 +339,9 @@ describe('Tendril', function () {
           .include('b', 'b')
           .resolve(function (router, a, b) {
             expect(router()).to.equal(undefined);
-          }).then(null, function (err) {
-            console.log(err);
           });
-      }).then(null, function (err) {
-        console.log(err);
       });
 
-  });
-
-  it('crawls with order', function () {
-    return new Tendril()
-      .include('counter', {cnt: 0})
-      .crawl({
-        path: __dirname + '/services',
-        postfix: 'Service',
-        order: ['notlazy.js']
-      })
-      .then(function (tendril) {
-        return tendril.services.counter.then(function (counter) {
-          expect(counter.cnt).to.equal(2);
-        });
-      })
-      .resolve(function (counter, addCountFourService) {
-        expect(counter.cnt).to.equal(6);
-      });
   });
 
   it('returns from promises unresolved', function () {
@@ -410,7 +364,28 @@ describe('Tendril', function () {
     .then(function () {
       expect(resolved).to.equal(false);
     });
+  });
 
+  // This test must go last because it creates an error domain
+  it('throws if no error handler', function (done) {
+    var d = domain.create();
+    d.on('error', function (err) {
+      expect(err.message).not.to.equal(undefined);
+      done();
+    });
+
+    d.run(function () {
+      new Tendril()
+      .include('A', function(A) {
+        return 'A';
+      }, {
+        lazy: false
+      })
+      .resolve(function () {
+        throw new Error('Should not resolve');
+      });
+
+    });
 
   });
 
