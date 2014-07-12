@@ -30,7 +30,7 @@ function Tendril() {
  * @param {IncludeConfig} config
  */
 Tendril.prototype.include = function include(name, constructor, config) {
-  var self = this
+  var self = this;
 
   // Legacy support for include(name, constructor, inject, lazy)
   if (typeof config === 'boolean') {
@@ -53,7 +53,7 @@ Tendril.prototype.include = function include(name, constructor, config) {
     config = _.defaults(config || {}, {
       inject: true,
       lazy: true
-    })
+    });
     var inject = config.inject;
     var lazy = config.lazy;
 
@@ -159,7 +159,7 @@ Tendril.prototype.resolve = function resolve(fn, error) {
       // resolve requested services, and pass them into the function
       return TendrilPromise.map(constructor.params, self._getService.bind(self))
         .spread(constructor.fn);
-    }).then(null, error)
+    }).then(null, error);
   })
   .then(function () {
     return self;
@@ -243,12 +243,12 @@ TendrilPromise.prototype = _.assign(TendrilPromise.prototype,
     var args = arguments;
     return this._then(function () {
       if (!tendril || !tendril._isTendril) {
-        throw new Error('Missing tendril object binding')
+        throw new Error('Missing tendril object binding');
       }
       return tendril[methodName].apply(tendril, args);
     });
-  }
-}, {}))
+  };
+}, {}));
 
 /*
  * @param {String} name
