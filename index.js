@@ -234,6 +234,32 @@ Tendril.prototype.crawl = function _crawl(crawl) {
   }
 };
 
+/*
+ * Inspect the dependencies
+ * @param fn - callback fn -> {x: ['y', 'z'], y: ['z'], z: []}
+ *             where x depends on y and z, y depends on z, and z depends
+ *             on nothing.
+ */
+Tendril.prototype.dependencies = function(fn) {
+  var self = this;
+
+  return TendrilPromise.try(function() {
+    var dependencies = _.extend(
+      _.mapValues(self.constructors, function(constructor) {
+        return constructor.params;
+      }),
+      _.mapValues(
+        _.omit(self.services, 'tendril'),
+        function() { return []; }
+      )
+    );
+    fn(dependencies);
+  })
+  .then(function () {
+    return self;
+  }).bind(this);
+};
+
 TendrilPromise.prototype = _.assign(TendrilPromise.prototype,
                       _.transform(Object.keys(Tendril.prototype),
                       function (methods, methodName) {

@@ -51,6 +51,15 @@ tendril.crawl(crawls)
  */
 tendril.on(name, fn)
 ```
+```js
+/*
+ * Inspect the dependencies
+ * @param fn - callback fn -> {x: ['y', 'z'], y: ['z'], z: []}
+ *             where x depends on y and z, y depends on z, and z depends
+ *             on nothing.
+ */
+tendril.dependencies(fn)
+```
 
 ### Examples:
 
